@@ -1,0 +1,10 @@
+{
+  "pseudo_pool_limit": 2000,
+  "pseudo_sample_target_per_label": 70,
+  "split": { "train": 0.8, "val": 0.1, "test": 0.1 },
+  "vader_pos_thr": 0.21,
+  "vader_neg_thr": -0.21,
+  "language_policy": "translate_to_en",
+  "max_words": 1024,
+  "seed": 7
+}

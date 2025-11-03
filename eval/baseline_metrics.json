@@ -1,0 +1,26 @@
+{
+  "counts": {
+    "n": 50
+  },
+  "config": {
+    "lead_n_sentences": 3,
+    "lead_max_words": 180,
+    "bertscore_model": "roberta-large",
+    "vader_pos": 0.05,
+    "vader_neg": -0.05
+  },
+  "summarization": {
+    "rougeL_f_mean": 0.186,
+    "bertscore_f1_mean": 0.8478
+  },
+  "sentiment": {
+    "macro_f1": 0.2675,
+    "report": "              precision    recall  f1-score   support\n\n    negative      0.583     0.483     0.528        29\n     neutral      0.400     0.133     0.200        15\n    positive      0.048     0.167     0.074         6\n\n    accuracy                          0.340        50\n   macro avg      0.344     0.261     0.267        50\nweighted avg      0.464     0.340     0.375        50\n"
+  },
+  "gate": {
+    "target_improvement": {
+      "rougeL": 0.05,
+      "macroF1": 0.1
+    }
+  }
+}

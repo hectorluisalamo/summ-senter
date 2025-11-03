@@ -1,0 +1,5 @@
+- Only fetch via public RSS links from allowlisted domains.
+- Honor robots.txt "Disallow" for our User-Agent; back off on 4xx/5xx; 1 req/sec/domain.
+- Persist: URL, title, publ_time, domain, language, cleaned_text_snippet (≤3000 chars), hash.
+- Do not store full HTML for paywalled or blocked pages; keep a stub record with reason.
+- Provide purge tool to remove an article on request (by URL or id).

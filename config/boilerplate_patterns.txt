@@ -1,0 +1,6 @@
+^By\s+[A-Z][a-z]+(\s+[A-Z][a-z]+)*\s*\|\s*.*$
+^Subscribe to our newsletter.*$
+^Read more: https?://.*
+^Related Articles?$
+^Follow us on (Twitter|X|Facebook|Instagram).*$ 
+^\s*Copyright © \d{4}.*

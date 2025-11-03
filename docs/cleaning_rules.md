@@ -1,0 +1,6 @@
+- Strip scripts, iframes, styles, event handlers.
+- Allow only text, p, h1–h3, li, a (resolve absolute links).
+- Collapse whitespace; drop boilerplate (“Subscribe”, “Sign up”).
+- Language detect: target en or es; else skip.
+- Truncate input text at 8k chars pre-summary to protect budget.
+- Compute text_hash = SHA256(lowercase + collapse_whitespace(text)).
