@@ -25,17 +25,18 @@ def _normalize(text: str) -> str:
 
 def _load_once():
     global _tokenizer, _model
-    if _tokenizer is None or _model is None:
+    if _tokenizer is None:
         _tokenizer = AutoTokenizer.from_pretrained(CKPT_REPO, use_auth_token=_hf_token)
+    if _model is None:
         _model = AutoModelForSequenceClassification.from_pretrained(CKPT_REPO, use_auth_token=_hf_token).to(_device).eval()
     return _tokenizer, _model
-    
+
 @torch.inference_mode()
 def predict_label(text: str) -> Tuple[str, float, str]:
     tokenizer, model = _load_once()
     text = _normalize(text)
     batch = tokenizer(text, return_tensors='pt', truncation=True, max_length=MAX_LEN)
-    batch = {k: v.to(device) for k, v in batch.items()}
+    batch = {k: v.to(_device) for k, v in batch.items()}
     
     logits = model(**batch).logits.squeeze(0)
     probs = torch.softmax(logits, dim=-1).detach().cpu()
@@ -56,14 +57,16 @@ def predict_label(text: str) -> Tuple[str, float, str]:
 
 @torch.inference_mode()
 def predict_batch(texts: List[str]) -> List[Tuple[str, float, str]]:
+    tokenizer, model = _load_once()
     texts = [_normalize(t) for t in texts]
     enc = tokenizer(texts, return_tensors='pt', truncation=True, padding=True, max_length=MAX_LEN)
-    enc = {k: v.to(device) for k, v in enc.items()}
+    enc = {k: v.to(_device) for k, v in enc.items()}
     logits = model(**enc).logits
     probs = torch.softmax(logits, dim=-1)
     ids = probs.argmax(dim=-1).detach().cpu().tolist()
     confs = probs.max(dim=-1).values.detach().cpu().tolist()
-    return [(ID2LABEL[i], float(c), MODEL_VERSION) for i, c in zip(ids, confs)]
+    id2label = model.config.id2label if hasattr(model.config, 'id2label') else {0: 'negative', 1: 'neutral', 2: 'positive'}
+    return [(id2label[i], float(c), MODEL_VERSION) for i, c in zip(ids, confs)]
 
 if __name__ == '__main__':
     print(predict_label('The outlook remains uncertain; oficials urged caution.'))
