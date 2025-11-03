@@ -1,0 +1,4 @@
+- Ingest **RSS entries** and fetch destination pages **only if robots.txt allows**.
+- Store **metadata + short snippet (~600 chars)**, never full article text for restricted sources.
+- We **link back** and include the domain prominently in UI.
+- Purge policy: remove on request from a publisher.

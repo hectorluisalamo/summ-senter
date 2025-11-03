@@ -1,0 +1,23 @@
+# EN — AP, BBC
+https://rsshub.app/apnews/topics/apf-topnews
+
+https://feeds.bbci.co.uk/news/world/us_and_canada/rss.xml
+https://www.bbc.co.uk/news/world/rss.xml
+https://www.bbc.co.uk/news/topics/cljevyzxlelt/rss.xml
+https://www.bbc.co.uk/news/world/latin_america/rss.xml
+
+https://www.theguardian.com/us-news/usimmigration/rss
+https://www.theguardian.com/us-news/rss
+https://www.theguardian.com/world/rss
+https://www.theguardian.com/world/americas/rss
+
+# ES — El País, El Mundo, ABC, La Vanguardia
+https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/portada
+https://ep00.epimg.net/rss/tags/ultimas_noticias.xml
+https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/internacional/portada
+
+https://e00-elmundo.uecdn.es/elmundo/rss/portada.xml
+https://e00-elmundo.uecdn.es/elmundo/rss/internacional.xml
+
+https://www.lavanguardia.com/mvc/feed/rss/internacional
+https://www.lavanguardia.com/rss/home.xml

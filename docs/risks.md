@@ -1,0 +1,6 @@
+- Legal/ToS → RSS-only + allowlist; robots honored; purge on request.
+- HTML injection/XSS → sanitize; drop scripts/iframes/styles; denylist event attrs; CSP in UI.
+- Translation drift → ES quotes flagged; length caps; per-language evals.
+- Sentiment bias → multilingual fine-tune; class balance; per-lang macro-F1 targets.
+- Cost/latency → cache; token caps; retries/backoff; budget alarms.
+- Reliability → timeouts; circuit breaker by domain; dead-letter queue for failures.

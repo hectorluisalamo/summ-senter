@@ -1,0 +1,6 @@
+primary: fasttext_lid176
+fallback: langid
+threshold: 0.80
+retry_chars: 1000
+route_es_to_translation: true
+unknown_policy: skip_translation

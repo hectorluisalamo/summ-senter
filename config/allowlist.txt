@@ -1,0 +1,9 @@
+apnews.com
+bbc.com
+theguardian.com
+npr.org
+elpais.com
+elmundo.es
+abc.es
+lavanguardia.com
+news.google.com

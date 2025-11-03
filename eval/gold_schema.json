@@ -1,0 +1,16 @@
+{
+  "fields": {
+    "id": "str  # must match articles.id",
+    "url": "str",
+    "domain": "str",
+    "lang": "str  # 'en' or 'es' (article language)",
+    "title": "str",
+    "reference_summary": "str  # your human-written reference",
+    "reference_sentiment": "str  # 'positive' | 'neutral' | 'negative'"
+  },
+  "policy": {
+    "references_language": "A",
+    "summary_length_sentences": "3-5",
+    "tone_target": "framing of coverage, not topic morality"
+  }
+}

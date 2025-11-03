@@ -1,0 +1,8 @@
+{
+  "allowed_tags": ["p","h1","h2","h3","ul","ol","li","a","blockquote","em","strong"],
+  "allowed_attrs": { "a": ["href"] },
+  "strip": true,
+  "strip_comments": true,
+  "drop_tags": ["script","style","iframe","object","embed","noscript","form","input","button","meta","link"],
+  "denylist_uri_schemes": ["javascript","data","vbscript"]
+}
