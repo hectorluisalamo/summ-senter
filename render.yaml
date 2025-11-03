@@ -9,6 +9,6 @@ services:
       - key: DATABASE_URL
         value: postgresql://news_summ_sent_user:ac4DEq6GQ21xk1HYGFdxobb2IW8fkvqs@dpg-d43p6ler433s739nl3vg-a.oregon-postgres.render.com/news_summ_sent        # CS50: paste External Postgres URL
       - key: REDIS_URL
-        value: redis://localhost:6379/0        # CS50: optional if you add Render Redis
+        value: redis://localhost:6379/07        # CS50: optional if you add Render Redis
       - key: SUMMARY_MODEL
         value: gpt-5-mini

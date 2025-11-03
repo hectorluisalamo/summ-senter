@@ -3,7 +3,7 @@ import os, subprocess, sys
 
 ENGINE = os.getenv('DB_ENGINE', 'sqlite')
 SQLITE_DB = os.getenv('DB_PATH', 'data/app.db')
-PG_URL = os.getenv('DB_URL', 'postgresql://user:password@localhost:5432/appdb')
+PG_URL = os.getenv('DB_URL', 'postgresql://news_summ_sent_user:ac4DEq6GQ21xk1HYGFdxobb2IW8fkvqs@dpg-d43p6ler433s739nl3vg-a/news_summ_sent')
 
 def main():
     if ENGINE == 'sqlite':
