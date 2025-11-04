@@ -1,6 +1,7 @@
 import os, time, uuid, hashlib, sqlite3, json, requests
 from urllib.parse import urlparse
 from bs4 import BeautifulSoup
+from fastapi import HTTPException
 from readability import Document
 
 ALLOWLIST_PATH = 'config/allowlist.txt'
@@ -33,7 +34,7 @@ def domain_allowed(url: str) -> bool:
     host = urlparse(url).netloc
     return any(host == d or host.endswith('.' + d) for d in ALLOW)
 
-def clean_html_to_text(hmtl: str) -> str:
+def clean_html_to_text(html: str) -> str:
     doc = Document(html)
     soup = BeautifulSoup(doc.summary(), 'lxml')
     for tag in soup(['script', 'style', 'iframe', 'noscript']):
@@ -47,12 +48,12 @@ def clean_html_to_text(hmtl: str) -> str:
 
 def fetch_url(url: str) -> str:
     if not domain_allowed(url):
-        raise Exception(403, 'domain_not_allowed')
+        raise HTTPException(status_code=403, detail='domain_not_allowed')
     if not robots_allow(url):
-        raise Exception(403, 'blocked_by_robots')
+        raise HTTPException(status_code=403, detail='blocked_by_robots')
     resp = requests.get(url, headers={'User-Agent': USER_AGENT}, timeout=FETCH_TIMEOUT_S)
     if resp.status_code != 200:
-        raise HTTPException(400, f'http_{resp.status_code}')
+        raise HTTPException(status_code=400, detail=f'http_{resp.status_code}')
     return clean_html_to_text(resp.text)
 
 def cache_key(url: str, model_version: str) -> str:

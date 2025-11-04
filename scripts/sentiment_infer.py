@@ -26,9 +26,9 @@ def _normalize(text: str) -> str:
 def _load_once():
     global _tokenizer, _model
     if _tokenizer is None:
-        _tokenizer = AutoTokenizer.from_pretrained(CKPT_REPO, use_auth_token=_hf_token)
+        _tokenizer = AutoTokenizer.from_pretrained(CKPT_REPO, token=_hf_token)
     if _model is None:
-        _model = AutoModelForSequenceClassification.from_pretrained(CKPT_REPO, use_auth_token=_hf_token).to(_device).eval()
+        _model = AutoModelForSequenceClassification.from_pretrained(CKPT_REPO, token=_hf_token).to(_device).eval()
     return _tokenizer, _model
 
 @torch.inference_mode()

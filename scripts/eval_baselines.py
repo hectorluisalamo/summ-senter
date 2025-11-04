@@ -33,6 +33,10 @@ def macro_f1(y_true: List[str], y_pred: List[str]) -> float:
     return f1_score(y_true, y_pred, average='macro')
 
 def rouge_l_f(ref: str, hyp: str) -> float:
+    ref = (ref or '').strip()
+    hyp = (hyp or '').strip()
+    if not ref or not hyp:
+        return 0.0
     scorer = rouge_scorer.RougeScorer(['rougeL'], use_stemmer=True)
     res = scorer.score(ref, hyp)
     return res['rougeL'].fmeasure
