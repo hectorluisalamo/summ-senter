@@ -1,10 +1,12 @@
-import os, redis, traceback, logging
+import os, redis, traceback, logging, time
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers.analyze import router as analyze_router
 from app.routers.articles import router as articles_router
 from app.routers.ops import router as ops_router
+from app.obs import log, new_request_id, should_sample
+from app.metrics import observe_ms
 
 logging.basicConfig(level=logging.INFO)
 
@@ -22,6 +24,21 @@ app.add_middleware(CORSMiddleware, allow_origins=['*'], allow_methods=['*'], all
 
 rds = redis.from_url(REDIS_URL) if REDIS_URL else None
 
+@app.middleware('http')
+async def add_request_context(request: Request, call_next):
+    rid = new_request_id()
+    request.state.request_id = rid
+    start = time.time()
+    try:
+        response = await call_next(request)
+        return response
+    finally:
+        dt = int((time.time() - start) * 1000)
+        observe_ms('http_request_ms', dt)
+        if should_sample():
+            log.info('http_request', rid=rid, path=request.url.path, ms=dt, method=request.method)
+    
+
 @app.exception_handler(Exception)
 async def all_errors(request: Request, exc: Exception):
     tb = ''.join(traceback.format_exception(type(exc), exc, exc.__traceback__))
@@ -35,7 +52,7 @@ async def all_errors(request: Request, exc: Exception):
 
 @app.post('/feedback')
 def feedback(payload: dict):
-    # add a table later
+    # Add a table later
     return {'ok': True}
 
 app.include_router(analyze_router)
