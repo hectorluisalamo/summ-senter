@@ -37,11 +37,9 @@ def cache_setex(key: str, ttl: int, val: str):
 def analyze(req: AnalyzeRequest):
     ensure_db()
     start = time.time()
-    # input source
     if sum([bool(req.url), bool(req.html), bool(req.text)]) != 1:
         raise Exception(400, 'provide exactly one of url|html|text')
     lang = req.lang or 'en'
-    # get text
     if req.url:
         text = fetch_url(str(req.url))
         title = None
@@ -55,7 +53,7 @@ def analyze(req: AnalyzeRequest):
     if not text:
         raise Exception(400, 'empty_text')
     
-    # cache check
+    # Cache check
     mv_sum = 'openai:gpt-5-mini@sum_v1'
     mv_sent = 'distilbert-mc@sent_v4'
     ck_blob = (
@@ -74,18 +72,18 @@ def analyze(req: AnalyzeRequest):
             payload['cache_hit'] = True
             return payload
         
-    # summarize
+    # Summarize
     sum_out = summarize_with_fallback(text, lang)
     summary = sum_out['summary']
     sum_latency = sum_out['latency_ms']
     
-    # sentiment on summary
+    # Sentiment on summary
     try:
         label, conf, mv_sent = predict_label(summary)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f'sentiment_error: {e}')
     
-    # assemble resonse
+    # Assemble resonse
     aid = str(uuid.uuid4())
     model_version = f'{sum_out['model_version']}|sent:{mv_sent}'
     total_latency = int((time.time() - start) * 1000)
@@ -104,7 +102,7 @@ def analyze(req: AnalyzeRequest):
         'cache_hit': False
     }
     
-    # store & cache
+    # Store & cache
     should_cache = not sum_out['model_version'].startswith('rule:')
     store_analysis(aid, str(req.url) if req.url else '', domain, title, lang,
                    summary, label, conf, tokens_used, total_latency, cost_cents, model_version)
