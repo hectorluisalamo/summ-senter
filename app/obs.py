@@ -5,7 +5,7 @@ LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO').upper()
 SAMPLE_RATE = float(os.getenv('SAMPLE_RATE', '1.0'))
 
 PRICING = {
-    'openai:gpt-5-mini': {'in': 0.00025, 'out': 0.002} # cents per 1K tokens
+    'openai:gpt-5-mini': {'in': 0.00025, 'out': 0.002} # Cents per 1K tokens
 }
 
 def setup_logging():

@@ -8,5 +8,5 @@ def health():
 
 @router.get('/metrics')
 def metrics():
-    # minimal; expand with histograms later
+    # Minimal; expand with histograms later
     return {'uptime': 'n/a', 'requests': 'n/a'}
