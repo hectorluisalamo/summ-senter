@@ -1,8 +1,12 @@
 __pycache__/
 .venv/
 .env
+.env.*
 *.sqlite
 *.db
 ckpts/
 __results__/
-
+.duckdb/
+eval/model_metrics.json
+scripts/test.sh
+eval/*.parquet
