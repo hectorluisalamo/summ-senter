@@ -141,7 +141,7 @@ def text_hash(text: str) -> str:
     Learn-these bits: normalize, then SHA256.
     """
     norm = ' '.join(text.lower().split())
-    return hashlib.sha256(norm.encode('utf-8')).hexdigest()       # CS50: sha256(norm).hexdigest()
+    return hashlib.sha256(norm.encode('utf-8')).hexdigest()
 
 def ensure_db():
     os.makedirs('data', exist_ok=True)

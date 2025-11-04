@@ -5,7 +5,7 @@
     "domain": "str",
     "lang": "str  # 'en' or 'es' (article language)",
     "title": "str",
-    "reference_summary": "str  # your human-written reference",
+    "reference_summary": "str  # human-written reference",
     "reference_sentiment": "str  # 'positive' | 'neutral' | 'negative'"
   },
   "policy": {

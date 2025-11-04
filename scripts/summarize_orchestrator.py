@@ -36,7 +36,7 @@ def summarize_with_fallback(raw_text: str, lang: str) -> Dict:
     if lang == 'es':
         text = translate_es_to_en(text)
 
-    # 1) API path
+    # API path
     p = build_prompt(text)
     t0 = time.time()
     try:
@@ -49,7 +49,7 @@ def summarize_with_fallback(raw_text: str, lang: str) -> Dict:
     except Exception as e_api:
         api_err = str(e_api)
 
-    # 2) Local T5 fallback
+    # Local T5 fallback
     t1 = time.time()
     local = _try_local_t5(text)
     if local:
@@ -59,7 +59,7 @@ def summarize_with_fallback(raw_text: str, lang: str) -> Dict:
             'model_version': 'hf:t5-small@sum_fb1'
         }
 
-    # 3) Lead-3 fallback
+    # Lead-3 fallback
     t2 = time.time()
     lead = _lead3(text)
     return {

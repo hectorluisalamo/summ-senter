@@ -45,7 +45,7 @@ def predict_label(text: str) -> Tuple[str, float, str]:
     id2label = model.config.id2label if hasattr(model.config, 'id2label') else {0: 'negative', 1: 'neutral', 2: 'positive'}
     label = id2label.get(pid, 'neutral')
     
-    # fallback if unsure
+    # Fallback if unsure
     if maxp < UNCERTAIN_MAXP:
         comp = vader.polarity_scores(text)['compound']
         if comp >= VADER_POS:
