@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import sqlite3, os, logging
+import sqlite3, os
 from pathlib import Path
 
 DB = os.getenv('DB_PATH', 'data/app.db')
@@ -23,8 +23,9 @@ def col_exists(cur, table, col):
     return any(r[1] == col for r in cur.fetchall())
 
 def main():
-    with sqlite3.connect(DB) as conn, conn.cursor() as cur:
+    with sqlite3.connect(DB) as conn:
         conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
         
         cur.execute('PRAGMA foreign_keys = OFF;')
         try:
@@ -35,16 +36,16 @@ def main():
                 cur.executescript(SQL_BACKFILL)
                 try:
                     cur.execute('ALTER TABLE articles DROP COLUMN fetch_status;')
-                    logging.info('Dropped fetch_status column from articles table.')
+                    print('Dropped fetch_status column from articles table.')
                 except sqlite3.OperationalError as e:
-                    logging.warning(f'Could not drop fetch_status column: {e}')
+                    print(f'Could not drop fetch_status column: {e}')
             
             cur.executescript(SQL_CREATE_INDEXES)
         
         finally:
             cur.execute('PRAGMA foreign_keys = ON;')
             
-    logging.info('Migrated to v1.1 succesfully.')
+    print('Migrated to v1.1 succesfully.')
     
 if __name__ == '__main__':
     main()
