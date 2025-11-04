@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 import os, json, time, re, pathlib
 from openai import OpenAI
-from scripts.translate_es_to_en import translate_es_to_en
+from scripts.translate_es_to_en import translate_es_to_en 
+PROVIDER = os.getenv('SUMMARY_PROVIDER', 'openai')
 
 client = OpenAI()
 
@@ -11,6 +12,19 @@ VERSION = 'sum_v1'
 
 MAX_TOKENS = int(os.getenv('SUMMARY_MAX_TOKENS', '200'))
 TEMPERATURE = float(os.getenv('SUMMARY_TEMPERATURE', '0.1'))
+
+def lead_n_summary(text: str, n: int = 3, max_words: int = 180) -> str:
+    s = ' '.join((text or '').split())
+    if not s:
+        return ''
+    sents = re.split(r'(?<=[.!?])\s+', s)
+    take = sents[:n] if sents else [s]
+    words = []
+    for sent in take:
+        for w in sent.split():
+            if len(words) < max_words:
+                words.append(w)
+    return ' '.join(words)
 
 def call_openai(prompt_text: str) -> str:
     from openai import OpenAI
@@ -38,9 +52,17 @@ def summarize(text: str, lang: str) -> dict:
     if lang == 'es':
         text = translate_es_to_en(text)
     text = ' '.join((text or '').split())[:4000]
-    prompt_text = build_prompt(text)
+    prompt = build_prompt(text)
+    
     t0 = time.time()
-    out = call_openai(prompt_text)
+    if PROVIDER == 'stub':
+        out = lead_n_summary(text)[:140]
+        mv = 'stub:lead3@sum_stub'
+    elif PROVIDER == 'lead3':
+        out = lead_n_summary(text)
+        mv = 'rule:lead3@sum_rule'
+    else:
+        out = call_openai(prompt)
     dt_ms = int((time.time() - t0) * 1000)
     return {
         'summary': out,

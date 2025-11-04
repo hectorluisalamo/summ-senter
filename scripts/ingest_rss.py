@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import os, time, hashlib, json, sqlite3, uuid
+import os, re, time, hashlib, json, sqlite3, uuid
 from urllib.parse import urlparse, parse_qs, unquote
 from urllib3.util.retry import Retry
 from urllib.robotparser import RobotFileParser
@@ -92,8 +92,6 @@ def make_session():
 SESSION = make_session()
 
 ROBOTS_CACHE = {}
-
-""""
 def robots_allows(url: str) -> bool:
     p = urlparse(url)
     base = f'{p.scheme}://{p.netloc}'
@@ -109,7 +107,6 @@ def robots_allows(url: str) -> bool:
             return True
         ROBOTS_CACHE[base] = rp
     return rp.can_fetch(USER_AGENT, url)
-"""
 
 def clean_html_to_text(html: str) -> str:
     doc = Document(html)
@@ -137,11 +134,11 @@ def get_lang(text: str, default='en') -> str:
         return default
 
 def text_hash(text: str) -> str:
-    """
-    Learn-these bits: normalize, then SHA256.
-    """
-    norm = ' '.join(text.lower().split())
-    return hashlib.sha256(norm.encode('utf-8')).hexdigest()
+    s = (text or '')
+    s = s.lower()
+    s = ' '.join(s.split())
+    s = re.sub(r'[^\w\s]', '', s)
+    return hashlib.sha256(s.encode('utf-8')).hexdigest()       # CS50: sha256(norm).hexdigest()
 
 def ensure_db():
     os.makedirs('data', exist_ok=True)
@@ -157,10 +154,8 @@ def upsert_article(conn, row):
     """, row)
 
 def fetch_article(url):
-    """"
     if not robots_allows(url):
         return None, 'blocked_by_robots'
-    """
     r = SESSION.get(url, headers={'User-Agent': USER_AGENT}, timeout=TIMEOUT)
     if r.status_code != 200:
         return None, f'http_{r.status_code}'
