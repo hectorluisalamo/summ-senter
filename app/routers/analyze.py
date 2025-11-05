@@ -10,6 +10,11 @@ from app.services import fetch_url, clean_html_to_text, store_analysis, ensure_d
 from app.obs import estimate_cost_cents, should_sample, log
 from app.metrics import observe_ms, inc
 
+try:
+    from app.metrics import PROM, P_COUNT, H_LAT
+except Exception:
+    PROM, P_COUNT, H_LAT = False, None, None
+
 MAX_INPUT_CHARS = 8000
 CACHE_TTL_S = 259200
 REDIS_URL = os.getenv('REDIS_URL', '')
@@ -72,6 +77,12 @@ def analyze(req: AnalyzeRequest, request: Request):
             if 'costs_cents' not in payload and 'cost_cents' in payload:
                 payload['costs_cents'] = payload.pop('cost_cents')
             payload['cache_hit'] = True
+            total_latency = int((time.time() - start) * 1000)
+            # Prometheus bump for cache hit
+            if PROM:
+                P_COUNT.inc()
+                H_LAT.observe(total_latency)
+                
             return payload
         
     # Summarize
@@ -147,5 +158,13 @@ def analyze(req: AnalyzeRequest, request: Request):
         model_version)
     if rds and should_cache:
         cache_setex(ckey, CACHE_TTL_S, json.dumps(resp))
+        
+    total_latency = int((time.time() - start) * 1000)
+    resp['latency_ms'] = total_latency
+    
+    # Prometheus bump for non-cache path
+    if PROM:
+        P_COUNT.inc()
+        H_LAT.observe(total_latency)
         
     return resp
