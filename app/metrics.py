@@ -11,7 +11,7 @@ except Exception:
 
 _lock = threading.Lock()
 counters = defaultdict(int)
-timings_ms = defaultdict(list, lambda: deque(maxlen=5000))
+timings_ms = defaultdict(lambda: deque(maxlen=5000))
 
 def inc(name: str, amount: int = 1) -> None:
     """Increment a counter by amount."""
