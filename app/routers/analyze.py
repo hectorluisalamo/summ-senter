@@ -98,9 +98,9 @@ def analyze(req: AnalyzeRequest, request: Request):
     
     model_version = f"{sum_out['model_version']}|sent:{mv_sent}"
     
-    # Token usage + cost (stubbed; fill once SDK returns usage)
-    in_tokens = 0  # Int from OpenAI SDK usage.prompt_tokens
-    out_tokens = 0 # Int from OpenAI SDK usage.completion_tokens
+    # Token usage + cost
+    in_tokens = sum_out.get('usage', {}).get('prompt_tokens', 0)
+    out_tokens = sum_out.get('usage', {}).get('completion_tokens', 0)
     cost_cents = estimate_cost_cents(sum_out['model_version'], in_tokens, out_tokens)
     
     # Metrics + logs
