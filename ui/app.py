@@ -8,7 +8,7 @@ st.caption("Paste a URL or text. We'll summarize and analyze its tone, plus show
 
 with st.form('analyze'):
     mode = st.radio('Source', ['URL', 'Text'], horizontal=True)
-    lang = st.selectbox('Language (input)', ['En', 'Es'], index=0)
+    lang = st.selectbox('Language (input)', ['en', 'es'], index=0)
     if mode == 'URL':
         url = st.text_input('Article URL', placeholder='https://...')
         payload = {'url': url, 'lang': lang}
