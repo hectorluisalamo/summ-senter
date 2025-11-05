@@ -1,5 +1,5 @@
 import os, time, uuid, hashlib, json
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from urllib.parse import urlparse
 import redis
 from redis.exceptions import RedisError
@@ -7,6 +7,8 @@ from app.schemas import AnalyzeRequest, AnalyzeResponse
 from scripts.summarize_orchestrator import summarize_with_fallback
 from scripts.sentiment_infer import predict_label
 from app.services import fetch_url, clean_html_to_text, store_analysis, ensure_db
+from app.obs import estimate_cost_cents, should_sample, log
+from app.metrics import observe_ms, inc
 
 MAX_INPUT_CHARS = 8000
 CACHE_TTL_S = 259200
@@ -34,11 +36,11 @@ def cache_setex(key: str, ttl: int, val: str):
         return
 
 @router.post('/', response_model=AnalyzeResponse)
-def analyze(req: AnalyzeRequest):
+def analyze(req: AnalyzeRequest, request: Request):
     ensure_db()
     start = time.time()
     if sum([bool(req.url), bool(req.html), bool(req.text)]) != 1:
-        raise Exception(400, 'provide exactly one of url|html|text')
+        raise HTTPException(status_code=400, detail='provide exactly one of url|html|text')
     lang = req.lang or 'en'
     if req.url:
         text = fetch_url(str(req.url))
@@ -51,7 +53,7 @@ def analyze(req: AnalyzeRequest):
         text = ' '.join((req.text or '').split())[:MAX_INPUT_CHARS]
         domain, title = 'local', None
     if not text:
-        raise Exception(400, 'empty_text')
+        raise HTTPException(status_code=400, detail='empty_text')
     
     # Cache check
     mv_sum = 'openai:gpt-5-mini@sum_v1'
@@ -83,30 +85,67 @@ def analyze(req: AnalyzeRequest):
     except Exception as e:
         raise HTTPException(status_code=502, detail=f'sentiment_error: {e}')
     
+    model_version = f"{sum_out['model_version']}|sent:{mv_sent}"
+    
+    # Token usage + cost (stubbed; fill once SDK returns usage)
+    in_tokens = 0  # Int from OpenAI SDK usage.prompt_tokens
+    out_tokens = 0 # Int from OpenAI SDK usage.completion_tokens
+    cost_cents = estimate_cost_cents(sum_out['model_version'], in_tokens, out_tokens)
+    
+    # Metrics + logs
+    total_latency = int((time.time() - start) * 1000)
+    observe_ms('analyze_latency_ms', total_latency)
+    inc('analyze_requests_total', 1)
+    cache_hit = False
+        
+    if should_sample():
+        log.info(
+                'analyze',
+                 request_id=request.state.request_id,
+                 url=str(req.url) if req.url else None,
+                 domain=domain,
+                 lang=lang,
+                 model_version=model_version,
+                 cache_hit=cache_hit,
+                 latency_ms=total_latency,
+                 sum_latency_ms=sum_latency,
+                 cost_cents=cost_cents,
+                 in_tokens=in_tokens,
+                 out_tokens=out_tokens
+        )
+    
     # Assemble resonse
     aid = str(uuid.uuid4())
-    model_version = f'{sum_out['model_version']}|sent:{mv_sent}'
-    total_latency = int((time.time() - start) * 1000)
-    tokens_used = 0
-    cost_cents = 0
     resp = {
         'id': aid,
         'summary': summary,
         'key_sentences': [],
         'sentiment': label,
         'confidence': conf,
-        'tokens': tokens_used,
+        'tokens': in_tokens + out_tokens,
         'latency_ms': total_latency,
         'costs_cents': cost_cents,
         'model_version': model_version,
-        'cache_hit': False
+        'cache_hit': cache_hit,
+        'used_fallback': not sum_out['model_version'].startswith('openai:')
     }
     
     # Store & cache
     should_cache = not sum_out['model_version'].startswith('rule:')
-    store_analysis(aid, str(req.url) if req.url else '', domain, title, lang,
-                   summary, label, conf, tokens_used, total_latency, cost_cents, model_version)
+    store_analysis(
+        aid, 
+        str(req.url) if req.url else '', 
+        domain, 
+        title, 
+        lang,
+        summary, 
+        label, 
+        conf, 
+        resp['tokens'], 
+        total_latency, 
+        cost_cents, 
+        model_version)
     if rds and should_cache:
         cache_setex(ckey, CACHE_TTL_S, json.dumps(resp))
-    resp['used_fallback'] = not sum_out['model_version'].startswith('openai:')
+        
     return resp
