@@ -40,7 +40,7 @@ def cache_setex(key: str, ttl: int, val: str):
     except RedisError:
         return
 
-@router.post('/', response_model=AnalyzeResponse)
+@router.post('', response_model=AnalyzeResponse)
 def analyze(req: AnalyzeRequest, request: Request):
     ensure_db()
     start = time.time()
