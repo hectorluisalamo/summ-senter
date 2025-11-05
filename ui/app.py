@@ -1,6 +1,6 @@
 import os, time, requests, streamlit as st
 
-API_BASE = os.getenv('API_Base', 'http://localhost:8000')
+API_BASE = os.getenv('API_BASE', 'http://localhost:8000')
 
 def _assert_api_base():
     if not (API_BASE.startswith('http://') or API_BASE.startswith('https://')):
