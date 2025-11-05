@@ -4,8 +4,11 @@ import structlog
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO').upper()
 SAMPLE_RATE = float(os.getenv('SAMPLE_RATE', '1.0'))
 
+P_IN = float(os.getenv('PRICE_CENTS_IN_GPT5_MINI', '0.00025'))  # Cents per 1K tokens (0.25 per 1M)
+P_OUT = float(os.getenv('PRICE_CENTS_OUT_GPT5_MINI', '0.002'))   # Cents per 1K tokens (2.0 per 1M)
+
 PRICING = {
-    'openai:gpt-5-mini': {'in': 0.00025, 'out': 0.002} # Cents per 1K tokens
+    'openai:gpt-5-mini': {'in': P_IN, 'out': P_OUT}
 }
 
 def setup_logging():
