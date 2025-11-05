@@ -34,7 +34,23 @@ def call_api(payload: dict):
     headers = {'Content-Type': 'application/json'}
     response = requests.post(f'{API_BASE}/analyze', json=payload, headers=headers, timeout=60)
     dt = int((time.time() - t0) * 1000)
-    return response.status_code, response.json(), dt
+    
+    ctype = response.headers.get('Content-Type', '')
+    is_json = 'application/json' in ctype.lower()
+    
+    if is_json:
+        body =response.json()
+    else:
+        body = {'non_json_body': response.text[:1024]}
+        
+    return response.status_code, body, dt
+
+if st.sidebar.button('Ping API /health'):
+    try:
+        response = requests.get(f'{API_BASE}/health', timeout=10)
+        st.sidebar.success(f'/health → {response.status_code}: {response.json()}')
+    except Exception as e:
+        st.sidebar.error(f'/health failed: {e}')
 
 if submitted:
     if mode == 'URL' and not payload['url']:
@@ -47,6 +63,7 @@ if submitted:
                 code, data, roundtrip_ms = call_api(payload)
                 if code != 200:
                     st.error(f'API Error {code}: {data}')
+                    st.code(data if isinstance(data, str) else data.get('non_json_body', data), language='text')
                 else:
                     st.subheader('Summary')
                     st.write(data['summary'])
