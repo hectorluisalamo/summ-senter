@@ -1,8 +1,10 @@
 import os, time, uuid, hashlib, sqlite3, json, requests
 from urllib.parse import urlparse
+import urllib.robotparser as roboparser
 from bs4 import BeautifulSoup
 from fastapi import HTTPException
 from readability import Document
+from app.obs import log
 
 ALLOWLIST_PATH = 'config/allowlist.txt'
 USER_AGENT = 'NewsSumSentiment/0.1 (+contact: halamo24@gmail.com)'
@@ -11,28 +13,41 @@ FETCH_TIMEOUT_S = 10
 DB_PATH = os.getenv('DB_PATH', 'data/app.db')
 
 def load_allowlist():
-    with open(ALLOWLIST_PATH) as f:
-        return {l.strip() for l in f if l.strip() and not l.startswith('#')}
+    with open(ALLOWLIST_PATH, 'r', encoding='utf-8') as f:
+        domains = []
+        for line in f:
+            s = line.strip()
+            if not s or s.startswith('#'):
+                continue
+            s = s.lower().lstrip('.')
+            domains.append(s)
+        return set(domains)
+    
 ALLOW = load_allowlist()
 
-def robots_allow(url: str) -> bool:
-    domain = urlparse(url).scheme + '://' + urlparse(url).netloc
-    robots_url = domain + '/robots.txt'
-    try:
-        text = requests.get(robots_url, headers={'User-Agent': USER_AGENT}, timeout=5).text.lower()
-    except Exception:
-        return True
-    path = urlparse(url).path or '/'
-    for line in text.splitlines():
-        if line.strip().startswith('disallow:'):
-            rule = line.split(':',1)[1].strip()
-            if rule and path.startswith(rule):
-                return False
-    return True
+def reload_allowlist():
+    global ALLOW
+    ALLOW = load_allowlist()
 
 def domain_allowed(url: str) -> bool:
-    host = urlparse(url).netloc
-    return any(host == d or host.endswith('.' + d) for d in ALLOW)
+    host = urlparse(url).hostname or ''
+    host = host.lower().rstrip('.')
+    allowed = any(host == d or host.endswith('.' + d) for d in ALLOW)
+    if not allowed:
+        log.info('domain_denied', host=host, allowlist=list(ALLOW)[:12], allowlist_size=len(ALLOW))
+    return allowed
+
+def robots_allow(url: str) -> bool:
+    parsed = urlparse(url)
+    base = f'{parsed.scheme}://{parsed.netloc}'
+    robots_url = base + '/robots.txt'
+    try:
+        rp = roboparser.RobotFileParser()
+        rp.set_url(robots_url)
+        rp.read()
+        return rp.can_fetch(USER_AGENT, url)
+    except Exception:
+        return True
 
 def clean_html_to_text(html: str) -> str:
     doc = Document(html)

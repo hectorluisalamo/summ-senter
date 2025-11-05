@@ -1,6 +1,10 @@
 apnews.com
 bbc.com
 theguardian.com
+cnn.com
+foxnews.com
+aljazeera.com
+abcnews.go.com
 npr.org
 elpais.com
 elmundo.es
