@@ -2,6 +2,14 @@ import os, time, requests, streamlit as st
 
 API_BASE = os.getenv('API_Base', 'http://localhost:8000')
 
+def _assert_api_base():
+    if not (API_BASE.startswith('http://') or API_BASE.startswith('https://')):
+        raise RuntimeError(f'API_BASE is invalide: {API_BASE}')
+
+_assert_api_base()
+
+st.sidebar.markdown(f'**API_BASE:** `{API_BASE}`')
+
 st.set_page_config(page_title='News Summarizer + Sentiment Analyzer', layout='centered')
 st.title('📰 News Summarizer & Sentiment Analyzer')
 st.caption("Paste a URL or text. We'll summarize and analyze its tone, plus show cost & latency. English/Spanish supported!")
