@@ -1,6 +1,6 @@
 import os, time, requests, streamlit as st
 
-API_BASE = 'https://summarizer-sentiment.onrender.com'
+API_BASE = os.getenv('API_Base', 'http://localhost:8000')
 
 st.set_page_config(page_title='News Summarizer + Sentiment Analyzer', layout='centered')
 st.title('📰 News Summarizer & Sentiment Analyzer')
