@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 import os, json, time, re, pathlib
 from openai import OpenAI
-from scripts.translate_es_to_en import translate_es_to_en 
+from scripts.translate_es_to_en import translate_es_to_en
+ 
 PROVIDER = os.getenv('SUMMARY_PROVIDER', 'openai')
 
 client = OpenAI()
@@ -41,7 +42,10 @@ def call_openai(prompt_text: str) -> str:
         max_tokens=MAX_TOKENS,
         temperature=TEMPERATURE
     )
-    return resp.choices[0].message.content.strip()
+    text = resp.choices[0].message.content.strip()
+    pt = resp.usage.prompt_tokens
+    ct = resp.usage.completion_tokens
+    return text, pt, ct
     
 def build_prompt(article_text: str) -> str:
     with open(PROMPT_PATH, 'r', encoding='utf-8') as f:
@@ -62,12 +66,16 @@ def summarize(text: str, lang: str) -> dict:
         out = lead_n_summary(text)
         mv = 'rule:lead3@sum_rule'
     else:
-        out = call_openai(prompt)
+        out, pt, ct = call_openai(prompt)
     dt_ms = int((time.time() - t0) * 1000)
     return {
         'summary': out,
         'latency_ms': dt_ms,
-        'model_version': f'openai: {MODEL_NAME}@{VERSION}'
+        'model_version': f'openai: {MODEL_NAME}@{VERSION}',
+        'usage': {
+            'prompt_tokens': pt,
+            'completion_tokens': ct
+        } if PROVIDER not in ['stub', 'lead3'] else {}
     }
     
 if __name__ == '__main__':
