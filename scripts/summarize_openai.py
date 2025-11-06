@@ -12,14 +12,21 @@ PROMPT_PATH = 'prompts/summarize_v1.txt'
 model_name = os.getenv('SUMMARY_MODEL', 'gpt-5-mini')
 VERSION = 'sum_v1'
 
-max_tokens = int(os.getenv('SUMMARY_MAX_TOKENS', '200'))
+max_tokens = int(os.getenv('SUMMARY_MAX_TOKENS', '220'))
 temp = 1 # Default
 
 MAX_PROMPT_CHARS = 6000
 MIN_SUMMARY_CHARS = 240
 MIN_WORDS = 50
 
+_DATELINE = re.compile(r'^\s*([A-Z][A-Z\s\-]+)\s*[:—-]\s+')
 _SENT_BREAK = re.compile(r'(?<=[.!?])\s+')
+
+def normalize_lede(lede: str) -> str:
+    s = (lede or '').strip()
+    s = _DATELINE.sub('', s)
+    s = s.replace(' : ', ': ').replace(' ,', ',')
+    return s
 
 def trim_article(a: str) -> str:
     return (a or '')[:MAX_PROMPT_CHARS]
@@ -47,7 +54,7 @@ def build_prompt(article_text: str, title: str = '', lede: str = '') -> str:
             context += f'TITLE: {title}\n'
         if lede:
             context += f'LEDE: {lede}\n'
-    return instructions + '\n' + context + '\n' + 'ARTICLE:\n' + article_text
+    return instructions + '\n' + context + 'ARTICLE:\n' + trim_article(article_text)
 
 def lead_n_summary(text: str, n: int = 3, max_words: int = 180) -> str:
     s = ' '.join((text or '').split())
@@ -101,15 +108,33 @@ def inject_subject_if_missing(summary: str, title: str) -> str:
     s = (summary or '').strip()
     if not s:
         return s
+    first_sent = s.split(".",1)[0].strip()
+    if not first_sent:
+        return s
     m = re.findall(r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+\b', title or '')
     name = m[0] if m else ''
-    if name and name.lower() not in s.split('.', 1)[0].lower():
-        return f'{name}: {s}'
+    if name and name.lower() not in first_sent.lower():
+        return f'{name} {first_sent[0].lower() + first_sent[1:]}.' + ('' if '.' not in s else ' ' + s.split('.', 1)[1].strip())
+    return s
+
+def tidy_summary(s: str) -> str:
+    s = (s or '').strip()
+    s = re.sub(r':\s*$', '.', s)
+    s = re.sub(r'(\bin\s+[A-Z][a-z]+)\s*:\s*', r'\1, ', s)
+    s = re.sub(r'^([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+):\s+\1\b', r'\1', s)
+    
+    # If text ends mid-sentence or lacks ending punc, trim to last full stop
+    if s.count('"') % 2 == 1 or s.count('"') != s.count('"'):
+        s = re.split(r'(?<=[.!?])\s', s)[0]
+        
+    if not re.search(r'[.!?]["”\']?\s*$', s):
+        s = s.rstrip(' :—-') + '.'
     return s
 
 def summarize(text: str, lang: str, title: str = '', lede: str = '') -> dict:
     if lang == 'es':
         text = translate_es_to_en(text)
+    lede = normalize_lede(lede)
     prompt = build_prompt(trim_article(text), title=title, lede=lede)
     t0 = time.time()
     out, pt, ct = call_openai(prompt)
@@ -132,7 +157,8 @@ def summarize(text: str, lang: str, title: str = '', lede: str = '') -> dict:
             pass
     if not good_enough(out):
         out = extractive_fallback(title, lede, text)
-        
+    
+    out = tidy_summary(out)    
     dt = int((time.time() - t0) * 1000)
     return {
         'summary': out.strip(),
