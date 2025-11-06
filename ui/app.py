@@ -18,8 +18,13 @@ st.sidebar.markdown(f'**API_BASE:** `{API_BASE}`')
 
 if st.sidebar.button('Ping API /health'):
     try:
-        response = requests.get(f'{API_BASE}/health', timeout=10)
-        st.sidebar.success(f'/health → {response.status_code}: {response.json()}')
+        resp = requests.get(f'{API_BASE}/health', timeout=10)
+        ctype = resp.headers.get('Content-Type', '')
+        if 'application/json' in ctype.lower():
+            st.sidebar.success(f'/health → {resp.status_code}: {resp.json()}')
+        else:
+            st.sidebar.error(f'/health non-JSON ({resp.status_code})')
+            st.sidebar.code(resp.text[:500], language='text')
     except Exception as e:
         st.sidebar.error(f'/health failed: {e}')
 
