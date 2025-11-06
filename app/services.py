@@ -1,4 +1,4 @@
-import os, time, uuid, hashlib, sqlite3, json, requests
+import os, re, hashlib, sqlite3, requests
 from urllib.parse import urlparse
 import urllib.robotparser as roboparser
 from bs4 import BeautifulSoup
@@ -49,8 +49,9 @@ def robots_allow(url: str) -> bool:
     except Exception:
         return True
 
-def clean_html_to_text(html: str) -> str:
+def clean_html_to_text(html: str):
     doc = Document(html)
+    title = (doc.short_title() or '').strip()
     soup = BeautifulSoup(doc.summary(), 'lxml')
     for tag in soup(['script', 'style', 'iframe', 'noscript']):
         tag.decompose()
@@ -58,8 +59,11 @@ def clean_html_to_text(html: str) -> str:
         for attr in list(el.attrs.keys()):
             if attr.lower().startswith('on'):
                 del el.attrs[attr]
-    text = ' '.join(soup.get_text(separator=' ').split())
-    return text[:MAX_INPUT_CHARS]
+    full = ' '.join(soup.get_text(separator=' ').split())
+    sents = re.split(r'(?<=[.!?])\s+', full)
+    lede = ' '.join(sents[:2])
+    text = full[:MAX_INPUT_CHARS]
+    return title, lede, text
 
 def fetch_url(url: str) -> str:
     if not domain_allowed(url):
