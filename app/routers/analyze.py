@@ -86,7 +86,9 @@ def analyze(req: AnalyzeRequest, request: Request):
         
     # Summarize
     sum_out = summarize(text, lang, title=title, lede=lede)
-    summary = sum_out['summary']
+    summary = sum_out.get('summary') or ''
+    if not summary:
+        summary = text[:300] # Fallback to snippet so users see *something*
     sum_latency = sum_out['latency_ms']
     
     # Sentiment on summary
