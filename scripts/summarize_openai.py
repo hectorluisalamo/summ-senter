@@ -11,7 +11,7 @@ PROMPT_PATH = 'prompts/summarize_v1.txt'
 model_name = os.getenv('SUMMARY_MODEL', 'gpt-5-mini')
 VERSION = 'sum_v1'
 
-MAX_TOKENS = int(os.getenv('SUMMARY_MAX_TOKENS', '200'))
+max_tokens = int(os.getenv('SUMMARY_MAX_TOKENS', '200'))
 TEMPERATURE = float(os.getenv('SUMMARY_TEMPERATURE', '0.1'))
 
 def lead_n_summary(text: str, n: int = 3, max_words: int = 180) -> str:
@@ -38,7 +38,7 @@ def call_openai(prompt_text: str) -> str:
     resp = client.chat.completions.create(
         model=model_name,
         messages=messages,
-        max_tokens=MAX_TOKENS,
+        max_completion_tokens=max_tokens,
         temperature=TEMPERATURE
     )
     text = resp.choices[0].message.content.strip()
