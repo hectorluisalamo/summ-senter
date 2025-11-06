@@ -28,20 +28,20 @@ if st.sidebar.button('Ping API /health'):
     except Exception as e:
         st.sidebar.error(f'/health failed: {e}')
 
-with st.form('analyze'):
-    mode = st.radio('Source', ['URL', 'Text'], horizontal=True)
-    lang = st.selectbox('Language (input)', ['en', 'es'], index=0)
+with st.form('analyze', clear_on_submit=False):
+    mode = st.radio('Source', ['URL', 'Text'], horizontal=True, key='mode')
+    lang = st.selectbox('Language (input)', ['en', 'es'], index=0, key='lang')
     if mode == 'URL':
-        url = st.text_input('Article URL', placeholder='https://...')
+        url = st.text_input('Article URL', placeholder='https://...', key='url_input')
         payload = {'url': url, 'lang': lang}
     else:
-        text = st.text_area('Article Text', height=200, placeholder='Paste article text here...')
+        text = st.text_area('Article Text', height=200, placeholder='Paste article text here...', key='text_input')
         payload = {'text': text, 'lang': lang}
     submitted = st.form_submit_button('Analyze (⌘/Ctrl + Enter)', icon='🚀')
     
 def sentiment_badge(sentiment: str):
     s = (sentiment or '').lower()
-    color_map = {'Positive': 'green', 'Neutral': 'blue', 'Negative': 'red'}
+    color_map = {'positive': 'green', 'neutral': 'blue', 'negative': 'red'}
     label = s.capitalize() if s else 'Neutral'
     color = color_map.get(s, 'blue')
     st.markdown(f'<span style="background:{color}; color:white; padding:4px 8px; border-radius:6px">{label}</span>', unsafe_allow_html=True)
@@ -62,9 +62,10 @@ def call_api(payload: dict):
     return int(resp.status_code), body, dt
 
 if submitted:
-    if mode == 'URL' and not payload['url']:
+    is_url_mode = (mode == 'URL')
+    if is_url_mode and not payload.get('url'):
         st.error('Please provide valid URL.')
-    elif mode == 'Text' and not payload['text']:
+    elif (not is_url_mode) and not payload.get('text'):
         st.error('Please provide text.')
     else:
         with st.spinner('Analyzing...'):
@@ -76,21 +77,27 @@ if submitted:
                         st.error(f'API Error {code}: {data.get('code', '')} {data.get('message', '')}')
                         st.code(str(data), language='json')
                     else:
-                        st.subheader('Summary')
-                        st.write(data['summary'])
-                        st.subheader('Sentiment Analysis')
-                        sentiment_badge(data['sentiment'])
-                        st.write(f'Confidence: **{data["confidence"]:.2f}**')
-                        st.subheader('Details')
-                        col1, col2, col3, col4 = st.columns(4)
-                        col1.metric('Latency (ms)', data['latency_ms'])
-                        col2.metric('Tokens', data['tokens'])
-                        col3.metric('Cost (¢)', data['costs_cents'])
-                        col4.metric('Cache', 'hit ✅' if data['cache_hit'] else 'miss ❌')
-                        st.caption(f'Model: {data['model_version']}')
-                        if payload.get('url'):
-                            st.caption(f'Source: {payload["url"]}')
-                        st.caption(f'Roundtrip UI→API→UI: {roundtrip_ms} ms')
+                        st.error(f'API Erro {code}')
+                        st.code(data.get('non_json_body', '(empty body)'), language='text')
+                else:
+                    st.subheader('Summary')
+                    st.write(data['summary'])
+                    
+                    st.subheader('Sentiment Analysis')
+                    sentiment_badge(data['sentiment'])
+                    st.write(f'Confidence: **{data["confidence"]:.2f}**')
+                    
+                    st.subheader('Details')
+                    col1, col2, col3, col4 = st.columns(4)
+                    col1.metric('Latency (ms)', data['latency_ms'])
+                    col2.metric('Tokens', data['tokens'])
+                    col3.metric('Cost (¢)', data['costs_cents'])
+                    col4.metric('Cache', 'hit ✅' if data['cache_hit'] else 'miss ❌')
+                    
+                    st.caption(f'Model: {data['model_version']}')
+                    if payload.get('url'):
+                        st.caption(f'Source: {payload["url"]}')
+                    st.caption(f'Roundtrip UI→API→UI: {roundtrip_ms} ms')
             except Exception as e:
                 st.exception(e)
 
