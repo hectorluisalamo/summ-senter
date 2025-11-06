@@ -12,7 +12,7 @@ model_name = os.getenv('SUMMARY_MODEL', 'gpt-5-mini')
 VERSION = 'sum_v1'
 
 max_tokens = int(os.getenv('SUMMARY_MAX_TOKENS', '200'))
-TEMPERATURE = float(os.getenv('SUMMARY_TEMPERATURE', '0.1'))
+temp = float(os.getenv('SUMMARY_TEMPERATURE', '1'))
 
 def lead_n_summary(text: str, n: int = 3, max_words: int = 180) -> str:
     s = ' '.join((text or '').split())
@@ -39,7 +39,7 @@ def call_openai(prompt_text: str) -> str:
         model=model_name,
         messages=messages,
         max_completion_tokens=max_tokens,
-        temperature=TEMPERATURE
+        temperature=temp
     )
     text = resp.choices[0].message.content.strip()
     pt = resp.usage.prompt_tokens
