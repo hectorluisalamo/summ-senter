@@ -56,8 +56,8 @@ def analyze(req: AnalyzeRequest, request: Request):
     else:
         title, lede, text = '', '', ' '.join((req.text or '').split())[:MAX_INPUT_CHARS]
         domain = 'local'
-    if not title or not lede or not text:
-        raise HTTPException(status_code=400, detail='empty_tlt')
+    if not text:
+        raise HTTPException(status_code=400, detail='empty_text')
     
     # Cache check
     mv_sum = 'openai:gpt-5-mini@sum_v1'
