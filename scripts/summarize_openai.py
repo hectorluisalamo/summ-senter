@@ -55,10 +55,13 @@ def build_prompt(article_text: str, title: str = '', lede: str = '') -> str:
             context += f'LEDE: {lede}\n'
     return instructions + '\n' + context + '\n' + 'ARTICLE:\n' + article_text
 
+_SENT_SPLIT = re.compile(r'([.!?]\s+)')
+
 def sentence_case(text: str) -> str:
-    def sent_split():
-        re.compile(r'([.!?]\s+)')
-    parts = sent_split((text or '').strip())
+    s = (text or '').strip()
+    if not s:
+        return s
+    parts = _SENT_SPLIT.split(s)
     out = []
     for i in range(0, len(parts), 2):
         sent = parts[i]
