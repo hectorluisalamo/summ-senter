@@ -48,17 +48,16 @@ def analyze(req: AnalyzeRequest, request: Request):
         raise HTTPException(status_code=400, detail='provide exactly one of url|html|text')
     lang = req.lang or 'en'
     if req.url:
-        text = fetch_url(str(req.url))
-        title = None
+        title, lede, text = fetch_url(str(req.url))
         domain = urlparse(str(req.url)).netloc
     elif req.html:
-        text = clean_html_to_text(req.html)
+        title, lede, text = clean_html_to_text(req.html)
         domain, title = 'local', None
     else:
-        text = ' '.join((req.text or '').split())[:MAX_INPUT_CHARS]
-        domain, title = 'local', None
-    if not text:
-        raise HTTPException(status_code=400, detail='empty_text')
+        title, lede, text = '', '', ' '.join((req.text or '').split())[:MAX_INPUT_CHARS]
+        domain = 'local'
+    if not title or not lede or not text:
+        raise HTTPException(status_code=400, detail='empty_tlt')
     
     # Cache check
     mv_sum = 'openai:gpt-5-mini@sum_v1'
@@ -86,7 +85,7 @@ def analyze(req: AnalyzeRequest, request: Request):
             return payload
         
     # Summarize
-    sum_out = summarize(text, lang)
+    sum_out = summarize(text, lang, title=title, lede=lede)
     summary = sum_out['summary']
     sum_latency = sum_out['latency_ms']
     

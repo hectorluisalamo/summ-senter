@@ -46,17 +46,21 @@ def call_openai(prompt_text: str) -> str:
     ct = resp.usage.completion_tokens
     return text, pt, ct
     
-def build_prompt(article_text: str) -> str:
+def build_prompt(article_text: str, title: str = '', lede: str = '') -> str:
     with open(PROMPT_PATH, 'r', encoding='utf-8') as f:
-        template = f.read()
-    return template + '\n\nARTICLE:\n' + article_text
+        instructions = f.read()
+        context = ''
+        if title:
+            context += f'TITLE: {title}\n'
+        if lede:
+            context += f'LEDE: {lede}\n'
+    return instructions + '\n' + context + '\n' + 'ARTICLE:\n' + article_text
 
-def summarize(text: str, lang: str) -> dict:
+def summarize(text: str, lang: str, title: str = '', lede: str = '') -> dict:
     if lang == 'es':
         text = translate_es_to_en(text)
     text = ' '.join((text or '').split())[:4000]
-    prompt = build_prompt(text)
-    
+    prompt = build_prompt(text, title=title, lede=lede)
     t0 = time.time()
     if PROVIDER == 'stub':
         out = lead_n_summary(text)[:140]
@@ -66,10 +70,10 @@ def summarize(text: str, lang: str) -> dict:
         mv = 'rule:lead3@sum_rule'
     else:
         out, pt, ct = call_openai(prompt)
-    dt_ms = int((time.time() - t0) * 1000)
+    dt = int((time.time() - t0) * 1000)
     return {
-        'summary': out,
-        'latency_ms': dt_ms,
+        'summary': out.strip(),
+        'latency_ms': dt,
         'model_version': f'openai: {model_name}@{VERSION}',
         'usage': {
             'prompt_tokens': pt,
