@@ -8,7 +8,7 @@ from sklearn.metrics import f1_score, classification_report
 from rouge_score import rouge_scorer
 from bert_score import score as bertscore
 
-DB = 'data/app.db'
+DB_PATH = 'data/app.db'
 GOLD = 'eval/gold_candidates.jsonl'
 OUT_JSON = 'eval/baseline_metrics.json'
 OUT_TABLE = 'eval/baseline_metrics.txt'

@@ -8,7 +8,7 @@ PROVIDER = os.getenv('SUMMARY_PROVIDER', 'openai')
 client = OpenAI()
 
 PROMPT_PATH = 'prompts/summarize_v1.txt'
-MODEL_NAME = os.getenv('SUMMARY_MODEL', 'gpt-5-mini')
+model_name = os.getenv('SUMMARY_MODEL', 'gpt-5-mini')
 VERSION = 'sum_v1'
 
 MAX_TOKENS = int(os.getenv('SUMMARY_MAX_TOKENS', '200'))
@@ -36,7 +36,7 @@ def call_openai(prompt_text: str) -> str:
     ]
 
     resp = client.chat.completions.create(
-        model=MODEL_NAME,
+        model=model_name,
         messages=messages,
         max_tokens=MAX_TOKENS,
         temperature=TEMPERATURE
@@ -70,7 +70,7 @@ def summarize(text: str, lang: str) -> dict:
     return {
         'summary': out,
         'latency_ms': dt_ms,
-        'model_version': f'openai: {MODEL_NAME}@{VERSION}',
+        'model_version': f'openai: {model_name}@{VERSION}',
         'usage': {
             'prompt_tokens': pt,
             'completion_tokens': ct

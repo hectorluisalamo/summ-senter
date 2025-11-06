@@ -2,10 +2,10 @@
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 import os, torch
 
-MODEL_NAME = os.getenv('TRANSLATE_MODEL', 'Helsinki-NLP/opus-mt-es-en')
+model_name = os.getenv('TRANSLATE_MODEL', 'Helsinki-NLP/opus-mt-es-en')
 
-tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-model = AutoModelForSeq2SeqLM.from_pretrained(MODEL_NAME)
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 model.to(device).eval()
 
