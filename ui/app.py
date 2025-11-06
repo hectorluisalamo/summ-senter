@@ -56,10 +56,10 @@ def call_api(payload: dict):
     ctype = resp.headers.get('Content-Type', '')
     is_json = 'application/json' in ctype.lower()
     if is_json:
-        body =resp.json()
+        body = resp.json()
     else:
         body = {'non_json_body': resp.text[:1024]}
-    return resp.status_code, body, dt
+    return int(resp.status_code), body, dt
 
 if submitted:
     if mode == 'URL' and not payload['url']:
@@ -70,27 +70,27 @@ if submitted:
         with st.spinner('Analyzing...'):
             try:
                 code, data, roundtrip_ms = call_api(payload)
-                if isinstance(data, dict) and 'non_json_body' not in data:
-                    st.error(f'API Error {code}: {data.get('code', '')} {data.get('message', '')}')
-                    st.code(str(data), language='json')
-                else:
-                    st.error(f'API Error {code}')
-                    st.code(data.get('non_json_body', '(empty body)'), language='text')
-                    st.subheader('Summary')
-                    st.write(data['summary'])
-                    st.subheader('Sentiment Analysis')
-                    sentiment_badge(data['sentiment'])
-                    st.write(f'Confidence: **{data["confidence"]:.2f}**')
-                    st.subheader('Details')
-                    col1, col2, col3, col4 = st.columns(4)
-                    col1.metric('Latency (ms)', data['latency_ms'])
-                    col2.metric('Tokens', data['tokens'])
-                    col3.metric('Cost (¢)', data['costs_cents'])
-                    col4.metric('Cache', 'hit ✅' if data['cache_hit'] else 'miss ❌')
-                    st.caption(f'Model: {data['model_version']}')
-                    if payload.get('url'):
-                        st.caption(f'Source: {payload["url"]}')
-                    st.caption(f'Roundtrip UI→API→UI: {roundtrip_ms} ms')
+                is_success = 200 <= code < 300
+                if not is_success:
+                    if isinstance(data, dict) and 'non_json_body' not in data:
+                        st.error(f'API Error {code}: {data.get('code', '')} {data.get('message', '')}')
+                        st.code(str(data), language='json')
+                    else:
+                        st.subheader('Summary')
+                        st.write(data['summary'])
+                        st.subheader('Sentiment Analysis')
+                        sentiment_badge(data['sentiment'])
+                        st.write(f'Confidence: **{data["confidence"]:.2f}**')
+                        st.subheader('Details')
+                        col1, col2, col3, col4 = st.columns(4)
+                        col1.metric('Latency (ms)', data['latency_ms'])
+                        col2.metric('Tokens', data['tokens'])
+                        col3.metric('Cost (¢)', data['costs_cents'])
+                        col4.metric('Cache', 'hit ✅' if data['cache_hit'] else 'miss ❌')
+                        st.caption(f'Model: {data['model_version']}')
+                        if payload.get('url'):
+                            st.caption(f'Source: {payload["url"]}')
+                        st.caption(f'Roundtrip UI→API→UI: {roundtrip_ms} ms')
             except Exception as e:
                 st.exception(e)
 
