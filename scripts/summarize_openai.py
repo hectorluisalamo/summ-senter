@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import os, json, time, re, pathlib
+import os, time, re
 from openai import OpenAI
 from scripts.translate_es_to_en import translate_es_to_en
  
@@ -56,6 +56,28 @@ def build_prompt(article_text: str, title: str = '', lede: str = '') -> str:
             context += f'LEDE: {lede}\n'
     return instructions + '\n' + context + '\n' + 'ARTICLE:\n' + article_text
 
+def sentence_case(text: str) -> str:
+    def sent_split():
+        re.compile(r'([.!?]\s+)')
+    parts = sent_split((text or '').strip())
+    out = []
+    for i in range(0, len(parts), 2):
+        sent = parts[i]
+        sep = parts[i+1] if i+1 < len(parts) else ''
+        sent = sent[:1].upper() + sent[1:]
+        out.append(sent + sep)
+    return ''.join(out)
+
+def inject_subject_if_missing(summary: str, title: str) -> str:
+    title_norm = title.title() if title and title.isupper() else title or ''
+    matches = re.findall(r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+\b', title_norm or '')
+    name = matches[0] if matches else ''
+    first_sent = re.split(r'(?<=[.!?])\s+', summary, maxsplit=1)[0]
+    pattern = re.compile(rf'\b{re.escape(name)}\b', flags=re.IGNORECASE)
+    if name and not pattern.search(first_sent):
+        return f'{name}: {summary}'
+    return summary
+
 def summarize(text: str, lang: str, title: str = '', lede: str = '') -> dict:
     if lang == 'es':
         text = translate_es_to_en(text)
@@ -64,12 +86,18 @@ def summarize(text: str, lang: str, title: str = '', lede: str = '') -> dict:
     t0 = time.time()
     if PROVIDER == 'stub':
         out = lead_n_summary(text)[:140]
+        out = sentence_case(out)
+        out = inject_subject_if_missing(out, title)
         mv = 'stub:lead3@sum_stub'
     elif PROVIDER == 'lead3':
         out = lead_n_summary(text)
+        out = sentence_case(out)
+        out = inject_subject_if_missing(out, title)
         mv = 'rule:lead3@sum_rule'
     else:
         out, pt, ct = call_openai(prompt)
+        out = sentence_case(out)
+        out = inject_subject_if_missing(out, title)
     dt = int((time.time() - t0) * 1000)
     return {
         'summary': out.strip(),
