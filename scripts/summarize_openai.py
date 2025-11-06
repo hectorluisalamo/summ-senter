@@ -2,6 +2,7 @@
 import os, time, re
 from openai import OpenAI
 from scripts.translate_es_to_en import translate_es_to_en
+from app.obs import log
  
 PROVIDER = os.getenv('SUMMARY_PROVIDER', 'openai')
 
@@ -55,28 +56,31 @@ def build_prompt(article_text: str, title: str = '', lede: str = '') -> str:
             context += f'LEDE: {lede}\n'
     return instructions + '\n' + context + '\n' + 'ARTICLE:\n' + article_text
 
-_SENT_SPLIT = re.compile(r'([.!?]\s+)')
+_SENT_SPLIT = re.compile(r'(?<=[.!?])\s+')
 
 def sentence_case(text: str) -> str:
     s = (text or '').strip()
     if not s:
         return s
     parts = _SENT_SPLIT.split(s)
-    out = []
-    for i in range(0, len(parts), 2):
-        sent = parts[i]
-        sep = parts[i+1] if i+1 < len(parts) else ''
-        sent = sent[:1].upper() + sent[1:]
-        out.append(sent + sep)
-    return ''.join(out)
+    fixed = []
+    for sent in parts:
+        m = re.match(r"^([\(\[\{\'\"“”‘’]+)?(.*)$", sent)
+        lead = m.group(1) or ''
+        body = m.group(2) or ''
+        for i, ch, in enumerate(body):
+            if ch.isalpha():
+                body = body[:i] + ch.upper() + body[i+1:]
+                break
+        fixed.append(lead + body)
+    return ''.join(fixed)
 
 def inject_subject_if_missing(summary: str, title: str) -> str:
     title_norm = title.title() if title and title.isupper() else title or ''
-    matches = re.findall(r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+\b', title_norm or '')
-    name = matches[0] if matches else ''
-    first_sent = re.split(r'(?<=[.!?])\s+', summary, maxsplit=1)[0]
-    pattern = re.compile(rf'\b{re.escape(name)}\b', flags=re.IGNORECASE)
-    if name and not pattern.search(first_sent):
+    m = re.findall(r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+\b', title_norm or '')
+    name = m[0] if m else ''
+    first_sent = summary.split('.', 1)[0].lower()
+    if name and name.lower() not in first_sent:
         return f'{name}: {summary}'
     return summary
 
@@ -98,8 +102,20 @@ def summarize(text: str, lang: str, title: str = '', lede: str = '') -> dict:
         mv = 'rule:lead3@sum_rule'
     else:
         out, pt, ct = call_openai(prompt)
-        out = sentence_case(out)
-        out = inject_subject_if_missing(out, title)
+        try:
+            out = sentence_case(out)
+        except Exception as e:
+            try:
+                log.info('postproc sentence-case error', err=str(e))
+            except Exception:
+                pass
+        try:
+            out = inject_subject_if_missing(out, title)
+        except Exception as e:
+            try:
+                log.info('postproc subject-inject error', err=str(e))
+            except Exception:
+                pass
     dt = int((time.time() - t0) * 1000)
     return {
         'summary': out.strip(),
