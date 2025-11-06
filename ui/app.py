@@ -1,5 +1,3 @@
-st.set_page_config(page_title='News Summarizer + Sentiment Analyzer', layout='centered')
-
 import os, time, requests, streamlit as st
 
 API_BASE = os.getenv('API_BASE', 'http://localhost:8000')
@@ -11,6 +9,10 @@ def _assert_api_base():
 
 _assert_api_base()
 
+st.set_page_config(page_title='News Summarizer + Sentiment Analyzer', layout='centered')
+st.title('📰 News Summarizer & Sentiment Analyzer')
+st.caption("Paste a URL or text. We'll summarize and analyze its tone, plus show cost & latency. English/Spanish supported!")
+
 st.sidebar.write('Sidebar Menu')
 st.sidebar.markdown(f'**API_BASE:** `{API_BASE}`')
 
@@ -20,9 +22,6 @@ if st.sidebar.button('Ping API /health'):
         st.sidebar.success(f'/health → {response.status_code}: {response.json()}')
     except Exception as e:
         st.sidebar.error(f'/health failed: {e}')
-        
-st.title('📰 News Summarizer & Sentiment Analyzer')
-st.caption("Paste a URL or text. We'll summarize and analyze its tone, plus show cost & latency. English/Spanish supported!")
 
 with st.form('analyze'):
     mode = st.radio('Source', ['URL', 'Text'], horizontal=True)
