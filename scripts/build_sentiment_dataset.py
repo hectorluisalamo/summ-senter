@@ -14,7 +14,7 @@ CFG = json.load(open('eval/sentiment_build_config.json'))
 random.seed(CFG['seed']
             )
 os.makedirs('models/sentiment', exist_ok=True)
-DB = 'data/app.db'
+DB_PATH = 'data/app.db'
 GOLD = 'eval/gold_candidates.jsonl'
 OUT = 'models/sentiment/dataset.jsonl'
 

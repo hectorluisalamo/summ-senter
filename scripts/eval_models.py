@@ -10,7 +10,7 @@ OFFLINE = os.getenv('SUMMARY_PROVIDER', 'openai') != 'openai'
 
 GOLD = 'eval/gold_candidates.jsonl'
 OUT_PATH = 'eval/model_metrics.json'
-DB = 'data/app.db'
+DB_PATH = 'data/app.db'
 
 SUM_VER = 'rule:lead3@sum_stub' if OFFLINE else 'openai:gpt-5-mini@sum_v1'
 SENT_VER = 'distilbert-mc@sent_v4'

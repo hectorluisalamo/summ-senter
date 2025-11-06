@@ -6,14 +6,14 @@ from transformers import (AutoTokenizer, AutoModelForSequenceClassification,
 import evaluate
 import numpy as np
 
-MODEL_NAME = 'distilbert-base-multilingual-cased'
+model_name = os.getenv('DISTILBERT_VARIANT', '')
 CKPT_DIR = 'ckpts/distilbert-mc_sent_v4'
 os.makedirs(CKPT_DIR, exist_ok=True)
 
 LABEL2ID = {'negative': 0, 'neutral': 1, 'positive': 2}
 ID2LABEL = {v: k for k, v in LABEL2ID.items()}
 
-tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+tokenizer = AutoTokenizer.from_pretrained(model_name)
 metric_f1 = evaluate.load('f1')
 
 def tokenize(ex):
@@ -45,7 +45,7 @@ def compute_metrics(eval_pred):
     return {'macro_f1': f1_macro}
 
 model = AutoModelForSequenceClassification.from_pretrained(
-    MODEL_NAME, num_labels=3, id2label=ID2LABEL, label2id=LABEL2ID
+    model_name, num_labels=3, id2label=ID2LABEL, label2id=LABEL2ID
 )
 
 args = TrainingArguments(

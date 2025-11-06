@@ -7,7 +7,7 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 vader = SentimentIntensityAnalyzer()
 
 CKPT_REPO = 'hugger2484/distilbert-mc-sent-v4'
-MODEL_VERSION = 'distilbert-mc@sent_v4'
+mv = 'distilbert-mc@sent_v4'
 MAX_LEN = 256
 CFG = json.load(open('eval/sentiment_build_config.json'))
 
@@ -53,7 +53,7 @@ def predict_label(text: str) -> Tuple[str, float, str]:
         elif comp <= VADER_NEG:
             label, maxp = 'negative', max(maxp, float(abs(comp)))
     
-    return label, float(maxp), MODEL_VERSION
+    return label, float(maxp), mv
 
 @torch.inference_mode()
 def predict_batch(texts: List[str]) -> List[Tuple[str, float, str]]:
@@ -66,7 +66,7 @@ def predict_batch(texts: List[str]) -> List[Tuple[str, float, str]]:
     ids = probs.argmax(dim=-1).detach().cpu().tolist()
     confs = probs.max(dim=-1).values.detach().cpu().tolist()
     id2label = model.config.id2label if hasattr(model.config, 'id2label') else {0: 'negative', 1: 'neutral', 2: 'positive'}
-    return [(id2label[i], float(c), MODEL_VERSION) for i, c in zip(ids, confs)]
+    return [(id2label[i], float(c), mv) for i, c in zip(ids, confs)]
 
 if __name__ == '__main__':
     print(predict_label('The outlook remains uncertain; oficials urged caution.'))
