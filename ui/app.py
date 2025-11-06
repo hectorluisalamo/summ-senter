@@ -13,9 +13,9 @@ st.set_page_config(page_title='News Summarizer + Sentiment Analyzer', layout='ce
 st.title('📰 News Summarizer & Sentiment Analyzer')
 st.caption("Paste a URL or text. We'll summarize and analyze its tone, plus show cost & latency. English/Spanish supported!")
 
+# Sidebar
 st.sidebar.write('Sidebar Menu')
 st.sidebar.markdown(f'**API_BASE:** `{API_BASE}`')
-
 if st.sidebar.button('Ping API /health'):
     try:
         resp = requests.get(f'{API_BASE}/health', timeout=10)
@@ -28,17 +28,9 @@ if st.sidebar.button('Ping API /health'):
     except Exception as e:
         st.sidebar.error(f'/health failed: {e}')
 
-with st.form('analyze', clear_on_submit=False):
-    mode = st.radio('Source', ['URL', 'Text'], horizontal=True, key='mode')
-    lang = st.selectbox('Language (input)', ['en', 'es'], index=0, key='lang')
-    if mode == 'URL':
-        url = st.text_input('Article URL', placeholder='https://...', key='url_input')
-        payload = {'url': url, 'lang': lang}
-    else:
-        text = st.text_area('Article Text', height=200, placeholder='Paste article text here...', key='text_input')
-        payload = {'text': text, 'lang': lang}
-    submitted = st.form_submit_button('Analyze (⌘/Ctrl + Enter)', icon='🚀')
-    
+mode = st.radio('Source', ['URL', 'Text'], horizontal=True, key='mode')
+lang = st.selectbox('Language (input)', ['en', 'es'], index=0, key='lang')
+
 def sentiment_badge(sentiment: str):
     s = (sentiment or '').lower()
     color_map = {'positive': 'green', 'neutral': 'blue', 'negative': 'red'}
@@ -60,6 +52,15 @@ def call_api(payload: dict):
     else:
         body = {'non_json_body': resp.text[:1024]}
     return int(resp.status_code), body, dt
+
+with st.form('analyze', clear_on_submit=False):
+    if mode == 'URL':
+        url = st.text_input('Article URL', placeholder='https://...', key='url_input')
+        payload = {'url': url, 'lang': lang}
+    else:
+        text = st.text_area('Article Text', height=200, placeholder='Paste article text here...', key='text_input')
+        payload = {'text': text, 'lang': lang}
+    submitted = st.form_submit_button('Analyze (⌘/Ctrl + Enter)', icon='🚀')
 
 if submitted:
     is_url_mode = (mode == 'URL')
