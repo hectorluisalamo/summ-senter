@@ -28,7 +28,6 @@ def lead_n_summary(text: str, n: int = 3, max_words: int = 180) -> str:
     return ' '.join(words)
 
 def call_openai(prompt_text: str) -> str:
-    from openai import OpenAI
     client = OpenAI()
 
     messages = [
