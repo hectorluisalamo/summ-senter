@@ -2,71 +2,70 @@
 import os, time, re, textwrap
 from openai import OpenAI
 from scripts.translate_es_to_en import translate_es_to_en
-
-client = OpenAI()
+from app.obs import log
 
 PROMPT_PATH = 'prompts/summarize_v1.txt'
 MODEL_NAME = os.getenv('SUMMARY_MODEL', 'gpt-5-mini')
 VERSION = 'sum_v1'
 
-MAX_TOKENS = int(os.getenv('SUMMARY_MAX_TOKENS', '200'))
+MAX_TOKENS = int(os.getenv('SUMMARY_MAX_TOKENS', '300'))
+MAX_PROMPT_CHARS = 4000
 
-def call_openai(prompt: str) -> str:
-    client = OpenAI()
+def _read_template(path: str) -> str:
+    with open(path, 'r', encoding='utf-8') as f:
+        return f.read().strip()
 
+def trim_article(text: str) -> str:
+    s = (text or '').strip()
+    parts = re.split(r'(?<=[.!?])\s+', s)
+    s = ' '.join(parts[:10])
+    return s[:MAX_PROMPT_CHARS]
+
+def build_prompt(article_text: str, title: str = '', lede: str = '') -> str:
+    instructions = [
+        'You are a precise news summarizer.\n' 
+        'Write neutral, faithful, 80-140 words, 3-4 sentences.\n' 
+        'First sentence must state the main event plainly, including the subject(s) by name if known (from title/lede).\n'
+        'In the second sentence, provide essential details, including key figures, people, locations, dates, etc.\n'
+        'In the remaining sentence(s), provide further context (e.g., what will happen next).\n'
+        'Use standard capitalization and punctuation.\n'
+        'Do not give your own opinions.\n'
+        'Return only the summary text.'
+    ]
+    return f'{instructions}\n\nARTICLE:\n{trim_article(article_text)}'
+
+def get_client() -> OpenAI:
+    key = os.getenv('OPENAI_API_KEY', '')
+    if not key:
+        raise RuntimeError('OPENAI_API_KEY not set')
+    return OpenAI(api_key=key)
+    
+def call_openai(prompt: str):
+    client = get_client()
     messages = [
         {'role': 'system', 'content': 'You are a precise news summarizer. Neutral, faithful, 80-140 words.'},
         {'role': 'user', 'content': prompt}
+        {'role': 'user', 'content': prompt}
     ]
-
-    resp = client.chat.completions.create(
+    response = client.responses.create(
         model=MODEL_NAME,
-        messages=messages,
-        max_completion_tokens=MAX_TOKENS,
+        input=prompt
     )
-    text = resp.choices[0].message.content.strip()
-    pt = resp.usage.prompt_tokens
-    ct = resp.usage.completion_tokens
+    text = response.output_text
+    pt = response.usage.input_tokens
+    ct = response.usage.output_tokens
     return text, pt, ct
 
-def inject_subject_if_missing(summary: str, title: str) -> str:
-    s = (summary or '').strip()
-    if not s:
-        return s
-    first_sent = s.split(".",1)[0].strip()
-    if not first_sent:
-        return s
-    m = re.findall(r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+\b', title or '')
-    name = m[0] if m else ''
-    if name and name.lower() not in first_sent.lower():
-        return f'{name} {first_sent[0].lower() + first_sent[1:]}.' + ('' if '.' not in s else ' ' + s.split('.', 1)[1].strip())
-    return s
-
-def tidy_summary(s: str) -> str:
-    s = (s or '').strip()
-    s = re.sub(r':\s*$', '.', s)
-    s = re.sub(r'(\bin\s+[A-Z][a-z]+)\s*:\s*', r'\1, ', s)
-    s = re.sub(r'^([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+):\s+\1\b', r'\1', s)
-    
-    # If text ends mid-sentence or lacks ending punc, trim to last full stop
-    if s.count('"') % 2 == 1 or s.count('"') != s.count('"'):
-        s = re.split(r'(?<=[.!?])\s', s)[0]
-        
-    if not re.search(r'[.!?]["”\']?\s*$', s):
-        s = s.rstrip(' :—-') + '.'
-    return s
-
-def summarize(text: str, lang: str, title: str = '', lede: str = '') -> dict:
+def summarize(text: str, lang: str) -> dict:
     if lang == 'es':
         text = translate_es_to_en(text)
-    lede = normalize_lede(lede)
-    prompt = build_prompt(trim_article(text), title=title, lede=lede)
+    text = ' '.join((text or '').split())[:4000]
+    prompt = build_prompt(text)
     t0 = time.time()
-    out, pt, ct = call_openai(prompt)
-    out = inject_subject_if_missing(out, title)
+    text, pt, ct = call_openai(prompt)
     dt = int((time.time() - t0) * 1000)
     return {
-        'summary': out.strip(),
+        'summary': text,
         'latency_ms': dt,
         'model_version': f'openai:{MODEL_NAME}@{VERSION}',
         'usage': {

@@ -1,4 +1,5 @@
 import os, time, uuid, hashlib, json
+from typing import Literal
 from fastapi import APIRouter, HTTPException, Request
 from urllib.parse import urlparse
 import redis
@@ -48,15 +49,16 @@ def analyze(req: AnalyzeRequest, request: Request):
         raise HTTPException(status_code=400, detail='provide exactly one of url|html|text')
     lang = req.lang or 'en'
     if req.url:
-        title, lede, text = fetch_url(str(req.url))
+        text = fetch_url(str(req.url))
+        title = None
         domain = urlparse(str(req.url)).netloc
     elif req.html:
-        title, lede, text = clean_html_to_text(req.html)
+        text = clean_html_to_text(req.html)
         domain, title = 'local', None
     else:
-        title, lede, text = '', '', ' '.join((req.text or '').split())[:MAX_INPUT_CHARS]
-        domain = 'local'
-    if not text:
+        text = ' '.join((req.text).split())[:MAX_INPUT_CHARS]
+        domain, title = 'local', None
+    if not isinstance(text, str) or not text.strip():
         raise HTTPException(status_code=400, detail='empty_text')
     
     # Cache check
@@ -85,10 +87,21 @@ def analyze(req: AnalyzeRequest, request: Request):
             return payload
         
     # Summarize
-    sum_out = summarize(text, lang, title=title, lede=lede)
-    summary = sum_out.get('summary') or ''
-    if not summary:
-        summary = text[:300] # Fallback to snippet so users see *something*
+    sum_out = summarize(text, lang)
+    summary = sum_out['summary']
+    
+    # --- DEBUG ---
+    log.info('sum_post_debug',
+             s_len = 0 if summary is None else len(summary),
+             s_preview = repr((summary or '')[:160]),
+             pt = int(sum_out['usage'].get('prompt_tokens', 0)),
+             ct = int(sum_out['usage'].get('completion_tokens', 0)))
+    log.info('text_guard_debug', has_text=bool(req.text), typ=str(type(req.text)))
+
+    
+    if summary == '':
+        summary = 'EMPTY_FROM_MODEL'
+        
     sum_latency = sum_out['latency_ms']
     
     # Sentiment on summary
