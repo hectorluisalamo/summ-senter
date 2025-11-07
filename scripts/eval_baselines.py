@@ -50,7 +50,7 @@ def load_gold() -> List[dict]:
     return rows
 
 def attach_snippets(rows: List[dict]) -> List[dict]:
-    conn = sqlite3.connect(DB)
+    conn = sqlite3.connect(DB_PATH)
     id2snip = {r[0]: r[1] for r in conn.execute(
         "SELECT id, snippet FROM articles"
     ).fetchall()}
