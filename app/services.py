@@ -51,7 +51,6 @@ def robots_allow(url: str) -> bool:
 
 def clean_html_to_text(html: str):
     doc = Document(html)
-    title = (doc.short_title() or '').strip()
     soup = BeautifulSoup(doc.summary(), 'lxml')
     for tag in soup(['script', 'style', 'iframe', 'noscript']):
         tag.decompose()
@@ -60,10 +59,8 @@ def clean_html_to_text(html: str):
             if attr.lower().startswith('on'):
                 del el.attrs[attr]
     full = ' '.join(soup.get_text(separator=' ').split())
-    sents = re.split(r'(?<=[.!?])\s+', full)
-    lede = ' '.join(sents[:2])
     text = full[:MAX_INPUT_CHARS]
-    return title, lede, text
+    return text
 
 def fetch_url(url: str) -> str:
     if not domain_allowed(url):
