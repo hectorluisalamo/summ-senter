@@ -42,10 +42,6 @@ def get_client() -> OpenAI:
     
 def call_openai(prompt: str):
     client = get_client()
-    messages = [
-        {'role': 'system', 'content': 'You are a precise news summarizer. Neutral, faithful, 80-140 words.'},
-        {'role': 'user', 'content': prompt}
-    ]
     response = client.responses.create(
         model=MODEL_NAME,
         input=prompt
