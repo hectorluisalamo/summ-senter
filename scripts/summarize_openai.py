@@ -45,7 +45,6 @@ def call_openai(prompt: str):
     messages = [
         {'role': 'system', 'content': 'You are a precise news summarizer. Neutral, faithful, 80-140 words.'},
         {'role': 'user', 'content': prompt}
-        {'role': 'user', 'content': prompt}
     ]
     response = client.responses.create(
         model=MODEL_NAME,
