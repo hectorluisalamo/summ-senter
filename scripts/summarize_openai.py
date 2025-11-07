@@ -12,49 +12,8 @@ PROMPT_PATH = 'prompts/summarize_v1.txt'
 model_name = os.getenv('SUMMARY_MODEL', 'gpt-5-mini')
 VERSION = 'sum_v1'
 
-max_tokens = int(os.getenv('SUMMARY_MAX_TOKENS', '220'))
-temp = 1 # Default
-
-MAX_PROMPT_CHARS = 6000
-MIN_SUMMARY_CHARS = 240
-MIN_WORDS = 50
-
-_DATELINE = re.compile(r'^\s*([A-Z][A-Z\s\-]+)\s*[:—-]\s+')
-_SENT_BREAK = re.compile(r'(?<=[.!?])\s+')
-
-def normalize_lede(lede: str) -> str:
-    s = (lede or '').strip()
-    s = _DATELINE.sub('', s)
-    s = s.replace(' : ', ': ').replace(' ,', ',')
-    return s
-
-def trim_article(a: str) -> str:
-    return (a or '')[:MAX_PROMPT_CHARS]
-
-def extractive_fallback(title: str, lede: str, article_text: str, n: int = 3) -> str:
-    # Title + first 2-3 sentences from article
-    base = (lede or article_text or '').strip()
-    sents = [s for s in _SENT_BREAK.split(base) if s]
-    body = ' '.join(sents[:n])
-    return (title + ': ' if title else '') + body
-
-def good_enough(summary: str) -> bool:
-    s = (summary or '').strip()
-    if not s:
-        return False
-    words = len(s.split())
-    periods = s.count('.')
-    return words >= MIN_WORDS and periods >= 2
-
-def build_prompt(article_text: str, title: str = '', lede: str = '') -> str:
-    with open(PROMPT_PATH, 'r', encoding='utf-8') as f:
-        instructions = f.read()
-        context = ''
-        if title:
-            context += f'TITLE: {title}\n'
-        if lede:
-            context += f'LEDE: {lede}\n'
-    return instructions + '\n' + context + 'ARTICLE:\n' + trim_article(article_text)
+MAX_TOKENS = int(os.getenv('SUMMARY_MAX_TOKENS', '200'))
+TEMPERATURE = float(os.getenv('SUMMARY_TEMPERATURE', '0.1'))
 
 def lead_n_summary(text: str, n: int = 3, max_words: int = 180) -> str:
     s = ' '.join((text or '').split())
@@ -80,7 +39,8 @@ def call_openai(prompt: str) -> str:
     resp = client.chat.completions.create(
         model=model_name,
         messages=messages,
-        max_completion_tokens=max_tokens
+        max_tokens=MAX_TOKENS,
+        temperature=TEMPERATURE
     )
     text = resp.choices[0].message.content.strip()
     pt = resp.usage.prompt_tokens
