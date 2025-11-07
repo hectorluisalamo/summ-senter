@@ -16,3 +16,4 @@ eval/*.duckdb
 __results__/
 eval/model_metrics.json
 scripts/test.sh
+data/service.log

@@ -115,7 +115,9 @@ def analyze(req: AnalyzeRequest, request: Request):
     # Token usage + cost
     in_tokens = sum_out.get('usage', {}).get('prompt_tokens', 0)
     out_tokens = sum_out.get('usage', {}).get('completion_tokens', 0)
-    cost_cents = estimate_cost_cents(sum_out['model_version'], in_tokens, out_tokens)
+    cached_in_tokens = 0
+    model_key = sum_out['model_version'].split('@')[0]
+    cost_cents = estimate_cost_cents(model_key, in_tokens, out_tokens, cached_in_tokens)
     
     # Metrics + logs
     total_latency = int((time.time() - start) * 1000)
