@@ -1,19 +1,29 @@
 #!/usr/bin/env python3
-import os, time, re, textwrap
+import os, time, re
 from openai import OpenAI
 from scripts.translate_es_to_en import translate_es_to_en
 from app.obs import log
 
-PROMPT_PATH = 'prompts/summarize_v1.txt'
+PROVIDER = os.getenv('SUMMARY_PROVIDER,' 'openai')
+
 MODEL_NAME = os.getenv('SUMMARY_MODEL', 'gpt-5-mini')
 VERSION = 'sum_v1'
 
 MAX_TOKENS = int(os.getenv('SUMMARY_MAX_TOKENS', '300'))
 MAX_PROMPT_CHARS = 4000
 
-def _read_template(path: str) -> str:
-    with open(path, 'r', encoding='utf-8') as f:
-        return f.read().strip()
+def lead_n_summary(text: str, n: int = 3, max_words: int = 180) -> str:
+    s = ' '.join((text or '').split())
+    if not s:
+        return ''
+    sents = re.split(r'(?<=[.!?])\s+', s)
+    take = sents[:n] if sents else [s]
+    words = []
+    for sent in take:
+        for w in sent.split():
+            if len(words) < max_words:
+                words.append(w)
+    return ' '.join(words)
 
 def trim_article(text: str) -> str:
     s = (text or '').strip()
@@ -57,12 +67,18 @@ def summarize(text: str, lang: str) -> dict:
     text = ' '.join((text or '').split())[:4000]
     prompt = build_prompt(text)
     t0 = time.time()
-    text, pt, ct = call_openai(prompt)
-    dt = int((time.time() - t0) * 1000)
-    return {
-        'summary': text,
+    if PROVIDER in ('lead3', 'stub'):
+        out = lead_n_summary(text)
+        return {'summary': out, 'latency_ms': 0, 'model_version': 'rule:lead3@sum_stub'}
+    else:
+        out = call_openai(prompt)
+        mv = f"openai:{MODEL_NAME}@{VERSION}"
+        text, pt, ct = call_openai(prompt)
+        dt = int((time.time() - t0) * 1000)
+        return {
+        'summary': out,
         'latency_ms': dt,
-        'model_version': f'openai:{MODEL_NAME}@{VERSION}',
+        'model_version': mv,
         'usage': {
             'prompt_tokens': pt,
             'completion_tokens': ct

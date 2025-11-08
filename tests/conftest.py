@@ -1,5 +1,4 @@
-import os, json, time
-import pytest
+import os, pytest
 from fastapi.testclient import TestClient
 
 os.environ.setdefault('REDIS_URL', '')
@@ -18,15 +17,22 @@ def client():
 
 @pytest.fixture
 def mock_summarize(monkeypatch):
-    from scripts import summarize_openai
+    import app.routers.analyze as ar
     def fake_sum(text, lang):
-        return {'summary': f'[SUM: {lang}] ' + text[:120], 'latency_ms': 5, 'model_version': 'openai:gpt-5-mini@sum_test'}
-    monkeypatch.setattr(summarize_openai, 'summarize', fake_sum, raising=True)
-    try:
-        import app.services as services
-        monkeypatch.setattr(services, 'summarize', fake_sum, raising=False)
-    except Exception:
-        pass
+        return {
+            'summary': f'[SUM: {lang}] ' + text[:120], 
+            'latency_ms': 5, 
+            'model_version': 'openai:gpt-5-mini@sum_test',
+            'usage': {'prompt_tokens': 50, 'completion_tokens': 80},
+            'cost_cents': 0
+        }
+    monkeypatch.setattr(ar, 'summarize', fake_sum, raising=True)
+    
+    import scripts.summarize_openai as so
+    monkeypatch.setattr(so, 'summarize', fake_sum, raising=True)
+    
+    import app.routers.analyze as ar
+    monkeypatch.setattr(ar, 'predict_label', lambda text: ('neutral', 0.5, 'sent@test'), raising=True)
     
 @pytest.fixture
 def mock_fetch(monkeypatch):

@@ -1,5 +1,5 @@
-import os, time, uuid, hashlib, json
-from typing import Literal
+import os, time, hashlib, json
+from uuid import uuid4
 from fastapi import APIRouter, HTTPException, Request
 from urllib.parse import urlparse
 import redis
@@ -46,7 +46,7 @@ def cache_setex(key: str, ttl: int, val: str):
     except RedisError:
         return
 
-@router.post('', response_model=AnalyzeResponse)
+@router.post('/', response_model=AnalyzeResponse)
 def analyze(req: AnalyzeRequest, request: Request):
     ensure_db()
     start = time.time()
@@ -95,15 +95,6 @@ def analyze(req: AnalyzeRequest, request: Request):
     sum_out = summarize(text, lang)
     summary = sum_out['summary']
     
-    # --- DEBUG ---
-    log.info('sum_post_debug',
-             s_len = 0 if summary is None else len(summary),
-             s_preview = repr((summary or '')[:160]),
-             pt = int(sum_out['usage'].get('prompt_tokens', 0)),
-             ct = int(sum_out['usage'].get('completion_tokens', 0)))
-    log.info('text_guard_debug', has_text=bool(req.text), typ=str(type(req.text)))
-
-    
     if summary == '':
         summary = 'EMPTY_FROM_MODEL'
         
@@ -118,8 +109,13 @@ def analyze(req: AnalyzeRequest, request: Request):
     model_version = f"{sum_out['model_version']}|sent:{mv_sent}"
     
     # Token usage + cost
-    in_tokens = sum_out.get('usage', {}).get('prompt_tokens', 0)
-    out_tokens = sum_out.get('usage', {}).get('completion_tokens', 0)
+    usage = sum_out.get('usage') or {}
+    try:
+        in_tokens = int(usage.get('prompt_tokens', 0))
+        out_tokens = int(usage.get('completion_tokens', 0))
+    except (ValueError, TypeError):
+        in_tokens, out_tokens = 0, 0
+    tokens_used = in_tokens + out_tokens
     cached_in_tokens = 0
     model_key = sum_out['model_version'].split('@')[0]
     cost_cents = estimate_cost_cents(model_key, in_tokens, out_tokens, cached_in_tokens)
@@ -129,6 +125,8 @@ def analyze(req: AnalyzeRequest, request: Request):
     observe_ms('analyze_latency_ms', total_latency)
     inc('analyze_requests_total', 1)
     cache_hit = False
+    
+    rid = getattr(getattr(request, 'state', object()), 'request_id', None)
         
     if should_sample():
         log.info(
@@ -147,14 +145,14 @@ def analyze(req: AnalyzeRequest, request: Request):
         )
     
     # Assemble resonse
-    aid = str(uuid.uuid4())
+    aid = str(uuid4())
     resp = {
         'id': aid,
         'summary': summary,
         'key_sentences': [],
         'sentiment': label,
         'confidence': conf,
-        'tokens': in_tokens + out_tokens,
+        'tokens': tokens_used,
         'latency_ms': total_latency,
         'costs_cents': cost_cents,
         'model_version': model_version,
@@ -189,3 +187,7 @@ def analyze(req: AnalyzeRequest, request: Request):
         H_LAT.observe(total_latency)
         
     return resp
+
+@router.post('', response_model=AnalyzeResponse)
+def analyze_noslash(req: AnalyzeRequest, request: Request):
+    return analyze(req, request)
