@@ -26,7 +26,7 @@ def load_gold():
 
 def main():
     gold = load_gold()
-    with sqlite3.connect(DB) as conn:
+    with sqlite3.connect(DB_PATH) as conn:
         idsnip = {r[0]: r[1] for r in conn.execute("SELECT id, snippet FROM articles").fetchall()}
         
         preds_summ, refs_summ = [], []

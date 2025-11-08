@@ -5,12 +5,17 @@ from urllib.parse import urlparse
 import redis
 from redis.exceptions import RedisError
 from app.schemas import AnalyzeRequest, AnalyzeResponse
-from scripts.summarize_openai import summarize
 from scripts.sentiment_infer import predict_label
 from app.services import fetch_url, clean_html_to_text, store_analysis, ensure_db
 from app.obs import estimate_cost_cents, should_sample, log
 from app.metrics import observe_ms, inc
 
+PROVIDER = os.getenv('SUMMARY_PROVIDER,' 'openai')
+
+if PROVIDER == 'stub':
+    from tests.conftest import mock_summarize
+else:
+    from scripts.summarize_openai import summarize
 try:
     from app.metrics import PROM, P_COUNT, H_LAT
 except Exception:
