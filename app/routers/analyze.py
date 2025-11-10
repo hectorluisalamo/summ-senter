@@ -2,7 +2,6 @@ import os, time, hashlib, json
 from uuid import uuid4
 from fastapi import APIRouter, HTTPException, Request
 from urllib.parse import urlparse
-import redis
 from redis.exceptions import RedisError
 from app.schemas import AnalyzeRequest, AnalyzeResponse
 from scripts.sentiment_infer import predict_label
@@ -28,7 +27,12 @@ API_SCHEMA_VER = 'v1.1'
 
 router = APIRouter(prefix='/analyze', tags=['analyze'])
 
-rds = redis.from_url(REDIS_URL) if REDIS_URL else None
+try:
+    import redis as _redis
+except Exception:
+    _redis = None
+    
+rds = _redis.from_url(REDIS_URL) if (_redis and REDIS_URL) else None
 
 def cache_get(key: str):
     if not rds:
