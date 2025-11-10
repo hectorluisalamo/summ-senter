@@ -8,6 +8,9 @@ from app.routers.articles import router as articles_router
 from app.routers.ops import router as ops_router
 from app.obs import log, new_request_id, should_sample
 from app.metrics import observe_ms
+from scripts.sentiment_infer import predict_label
+from scripts.translate_es_to_en import translate_es_to_en
+
 
 logging.basicConfig(level=logging.INFO)
 
@@ -21,9 +24,21 @@ FETCH_TIMEOUT_S = 10
 SUM_TIMEOUT_S = 20
 
 app = FastAPI(title='News Summarizer + Sentiment')
+
 app.add_middleware(CORSMiddleware, allow_origins=['*'], allow_methods=['*'], allow_headers=['*'])
     
 rds = get_client(REDIS_URL)
+
+@app.on_event("startup")
+def warm_models():
+    try:
+        # Warm DistilBERT
+        _ = predict_label("Warmup text about markets.")
+        # Warm translator (small input, cached weights)
+        _ = translate_es_to_en("hola mundo", max_input_tokens=16, max_new_tokens=16)
+        log.info("warmup_complete")
+    except Exception as e:
+        log.info("warmup_error", error=str(e))
 
 @app.middleware('http')
 async def add_request_context(request: Request, call_next):
