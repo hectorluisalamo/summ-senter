@@ -2,12 +2,25 @@
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 import os, torch
 
-model_name = os.getenv('TRANSLATE_MODEL', 'Helsinki-NLP/opus-mt-es-en')
+MODEL_LOCAL = os.getenv('TRANSLATE_LOCAL_MODEL', '/app/ckpts/opus-mt-es-en')
+MODEL_NAME = os.getenv('TRANSLATE_MODEL', 'Helsinki-NLP/opus-mt-es-en')
 
-tokenizer = AutoTokenizer.from_pretrained(model_name)
-model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+model = AutoModelForSeq2SeqLM.from_pretrained(MODEL_NAME)
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 model.to(device).eval()
+
+def _lazy_init():
+    global tokenizer, model
+    if tokenizer is None or model is None:
+        try:
+            tokenizer = AutoTokenizer.from_pretrained(MODEL_LOCAL)
+            model = AutoModelForSeq2SeqLM.from_pretrained(MODEL_LOCAL)
+        except Exception:
+            # fallback to remote (should be rare once baked)
+            tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+            model = AutoModelForSeq2SeqLM.from_pretrained(MODEL_NAME)
+        model.to(device).eval()
 
 def translate_es_to_en(text: str, max_input_tokens: int = 512, max_new_tokens: int = 128) -> str:
     text = ' '.join((text or '').split())

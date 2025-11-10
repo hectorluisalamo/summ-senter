@@ -17,6 +17,14 @@ RUN pip install --no-cache-dir -r requirements.api.txt
 
 # Copy code and model checkpoints
 COPY . /app
+RUN python - <<'PY'
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+p = "/app/ckpts/opus-mt-es-en"
+tok = AutoTokenizer.from_pretrained("Helsinki-NLP/opus-mt-es-en")
+mdl = AutoModelForSeq2SeqLM.from_pretrained("Helsinki-NLP/opus-mt-es-en")
+tok.save_pretrained(p); mdl.save_pretrained(p)
+print("Saved translator to", p)
+PY
 
 ENV CKPT_DIR=/app/ckpts/distilbert-mc_sent_v4
 
