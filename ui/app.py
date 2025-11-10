@@ -2,6 +2,7 @@ import os, time, requests, streamlit as st
 
 API_BASE = os.getenv('API_BASE', 'http://localhost:8000')
 API_KEY = os.getenv('DEMO_API_KEY', '')
+API_TIMEOUT = int(os.getenv('API_TIMEOUT_SEC', '180'))
 
 def _assert_api_base():
     if not (API_BASE.startswith('http://') or API_BASE.startswith('https://')):
@@ -43,6 +44,20 @@ def call_api(payload: dict):
     headers = {'Content-Type': 'application/json'}
     if API_KEY:
         headers['Authorization'] = f'Bearer {API_KEY}'
+    for attempt in range(2):
+        try:
+            r = requests.post(f'{API_BASE}/analyze', json=payload, headers=headers, timeout=API_TIMEOUT)
+            dt = int ((time.time() - t0) * 1000)
+            try:
+                data = r.json()
+            except Exception:
+                data = r.text
+            return r.status_code, data, dt
+        except requests.exceptions.ReadTimeout:
+            if attempt == 0:
+                time.sleep(1.5)
+                continue
+            raise
     resp = requests.post(f'{API_BASE}/analyze', json=payload, headers=headers, timeout=60)
     dt = int((time.time() - t0) * 1000)
     ctype = resp.headers.get('Content-Type', '')
