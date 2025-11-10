@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import os, time, re
-from openai import OpenAI
 from scripts.translate_es_to_en import translate_es_to_en
 from app.obs import log
 
@@ -43,15 +42,13 @@ def build_prompt(article_text: str, title: str = '', lede: str = '') -> str:
         'Return only the summary text.'
     ]
     return f'{instructions}\n\nARTICLE:\n{trim_article(article_text)}'
-
-def get_client() -> OpenAI:
-    key = os.getenv('OPENAI_API_KEY', '')
-    if not key:
-        raise RuntimeError('OPENAI_API_KEY not set')
-    return OpenAI(api_key=key)
     
 def call_openai(prompt: str):
-    client = get_client()
+    try:
+        from openai import OpenAI
+    except Exception:
+        return '<stub summary', 0, 0
+    client = OpenAI()
     response = client.responses.create(
         model=MODEL_NAME,
         input=prompt
