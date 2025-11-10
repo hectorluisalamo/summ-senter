@@ -75,10 +75,10 @@ if submitted:
                 is_success = 200 <= code < 300
                 if not is_success:
                     if isinstance(data, dict) and 'non_json_body' not in data:
-                        st.error(f'API Error {code}: {data.get('code', '')} {data.get('message', '')}')
+                        st.error(f'API Error {code}: {data.get("code", "")} {data.get("message", "")}')
                         st.code(str(data), language='json')
                     else:
-                        st.error(f'API Erro {code}')
+                        st.error(f'API Error {code}')
                         st.code(data.get('non_json_body', '(empty body)'), language='text')
                 else:
                     st.subheader('Summary')
