@@ -1,4 +1,5 @@
 import os, traceback, logging, time
+from app.cache import get_client
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,13 +22,8 @@ SUM_TIMEOUT_S = 20
 
 app = FastAPI(title='News Summarizer + Sentiment')
 app.add_middleware(CORSMiddleware, allow_origins=['*'], allow_methods=['*'], allow_headers=['*'])
-
-try:
-    import redis as _redis
-except Exception:
-    _redis = None
     
-rds = _redis.from_url(REDIS_URL) if (_redis and REDIS_URL) else None
+rds = get_client(REDIS_URL)
 
 @app.middleware('http')
 async def add_request_context(request: Request, call_next):
