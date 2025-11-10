@@ -2,12 +2,22 @@ import threading
 from collections import defaultdict, deque
 
 try:
-    from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
+    from prometheus_client import Counter as _PCounter, Histogram as _PHist, generate_latest, CONTENT_TYPE_LATEST
     PROM = True
-    P_COUNT = Counter('analyze_requests_total', 'Total analyze requests')
-    H_LAT = Histogram('analyze_latency_ms', 'Analyze latency ms', buckets=(100, 250, 500, 1000, 2000, 5000))
+    P_COUNT = _PCounter('analyze_requests_total', 'Total analyze requests')
+    H_LAT = _PHist('analyze_latency_ms', 'Analyze latency ms', buckets=(100, 250, 500, 1000, 2000, 5000))
 except Exception:
     PROM = False
+    def generate_latest() -> bytes:
+        return b'# prometheus not enabled\n'
+    CONTENT_TYPE_LATEST = 'text/plain; version=0.0.4; charset=utf-8'
+    class _Noop:
+        def inc(self, *a, **k):
+            pass
+        def observer(self, *a, **k):
+            pass
+    P_COUNT = _Noop()
+    H_LAT = _Noop()
 
 _lock = threading.Lock()
 counters = defaultdict(int)
