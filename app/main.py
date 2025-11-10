@@ -38,7 +38,12 @@ async def add_request_context(request: Request, call_next):
         observe_ms('http_request_ms', dt)
         if should_sample():
             log.info('http_request', rid=rid, path=request.url.path, ms=dt, method=request.method)
-    
+
+@app.middleware('http')
+async def security_headers(request: Request, call_next):
+    resp = await call_next(request)
+    resp.headers['X-Frame-Options'] = 'DENY'
+    return resp    
 
 @app.exception_handler(Exception)
 async def all_errors(request: Request, exc: Exception):
