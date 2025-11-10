@@ -38,3 +38,10 @@ def mock_summarize(monkeypatch):
 def mock_fetch(monkeypatch):
     import app.services as services
     monkeypatch.setattr(services, 'fetch_url', lambda url: 'Breaking: profits up 12% as costs fall.', raising=True)
+    
+@pytest.fixture
+def mock_sentiment(monkeypatch):
+    from scripts import sentiment_infer
+    def fake_sent(text):
+        return ('neutral', 0.66, 'distilbert-mc@sent_test')
+    monkeypatch.setattr(sentiment_infer, 'predict_label', fake_sent)

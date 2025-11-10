@@ -2,10 +2,6 @@
 import os, torch, json
 from typing import List, Tuple
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
-from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
-
-vader = SentimentIntensityAnalyzer()
-
 CKPT_REPO = 'hugger2484/distilbert-mc-sent-v4'
 mv = 'distilbert-mc@sent_v4'
 MAX_LEN = 256
@@ -19,6 +15,7 @@ _device = 'cuda' if torch.cuda.is_available() else 'cpu'
 _hf_token = os.getenv('HUGGINGFACE_HUB_TOKEN')
 _tokenizer = None
 _model = None
+ID2LABEL = {0: "negative", 1: "neutral", 2: "positive"}
 
 def _normalize(text: str) -> str:
     return ' '.join((text or '').split())
@@ -45,13 +42,14 @@ def predict_label(text: str) -> Tuple[str, float, str]:
     id2label = model.config.id2label if hasattr(model.config, 'id2label') else {0: 'negative', 1: 'neutral', 2: 'positive'}
     label = id2label.get(pid, 'neutral')
     
-    # Fallback if unsure
+    """ Fallback if unsure
     if maxp < UNCERTAIN_MAXP:
         comp = vader.polarity_scores(text)['compound']
         if comp >= VADER_POS:
             label, maxp = 'positive', max(maxp, float(comp))
         elif comp <= VADER_NEG:
             label, maxp = 'negative', max(maxp, float(abs(comp)))
+    """
     
     return label, float(maxp), mv
 
