@@ -1,0 +1,11 @@
+pytest==8.4.2
+pytest-httpx==0.35.0
+httpx==0.28.1
+rouge_score==0.1.2
+bert-score==0.3.13
+scikit-learn==1.7.2
+datasets==4.3.0
+evaluate==0.4.6
+duckdb==1.4.1
+lxml_html_clean==0.4.3
+langdetect==1.0.9
