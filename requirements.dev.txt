@@ -9,3 +9,9 @@ evaluate==0.4.6
 duckdb==1.4.1
 lxml_html_clean==0.4.3
 langdetect==1.0.9
+beautifulsoup4
+readability-lxml==0.8.4.1
+fastapi==0.120.3
+uvicorn==0.38.0
+structlog==25.5.0
+requests==2.32.5
