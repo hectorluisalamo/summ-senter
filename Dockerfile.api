@@ -21,8 +21,8 @@ COPY . /app
 ENV CKPT_DIR=/app/ckpts/distilbert-mc_sent_v4
 
 # Non-root user
-RUN useradd -m appuser \
-mkdir -p /app/data && chown -R appuser:appuser /app/data
+RUN useradd -m appuser
+RUN mkdir -p /app/data && chown -R appuser:appuser /app/data
 USER appuser
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
