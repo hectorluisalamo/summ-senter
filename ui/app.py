@@ -95,7 +95,7 @@ if submitted:
                     col3.metric('Cost (¢)', data['costs_cents'])
                     col4.metric('Cache', 'hit ✅' if data['cache_hit'] else 'miss ❌')
                     
-                    st.caption(f'Model: {data['model_version']}')
+                    st.caption(f'Model: {data["model_version"]}')
                     if payload.get('url'):
                         st.caption(f'Source: {payload["url"]}')
                     st.caption(f'Roundtrip UI→API→UI: {roundtrip_ms} ms')
