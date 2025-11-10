@@ -1,4 +1,5 @@
 import os, re, hashlib, sqlite3, requests
+from pathlib import Path
 from urllib.parse import urlparse
 import urllib.robotparser as roboparser
 from bs4 import BeautifulSoup
@@ -76,11 +77,23 @@ def cache_key(url: str, model_version: str) -> str:
     blob = (url + '|' + model_version).encode('utf-8')
     return 'an:' + hashlib.sha256(blob).hexdigest()
 
+def ensure_db_dir():
+    Path(DB_PATH).parent.mkdir(parents=True, exist_ok=True)
+
+def safe_connect():
+    try:
+        ensure_db_dir()
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        return conn
+    except Exception as e:
+        raise HTTPException(status_code=503, detail={'code': 'db_unavailable', 'message': str(e)})
+
 def ensure_db():
     os.makedirs('data', exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
-    schema_path = 'data/schema.sql'
+    schema_path = 'data/schema_v1_1.sql'
     if os.path.exists(schema_path):
         conn.executescript(open(schema_path).read())
     else:
@@ -90,30 +103,39 @@ def ensure_db():
             url TEXT NOT NULL,
             domain TEXT NOT NULL,
             title TEXT,
-            lang TEXT CHECK (lang IN ('en','es')),
-            pub_time TIMESTAMP,
+            lang TEXT CHECK (lang IN ('en','es')) NOT NULL,
+            pub_time TEXT,   -- ISO 8601
             snippet TEXT,
             text_hash TEXT NOT NULL,
-            fetch_status TEXT,
-            create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            create_time TEXT NOT NULL
         );
         CREATE TABLE IF NOT EXISTS analyses(
             article_id TEXT NOT NULL,
             summary TEXT,
-            key_sentences JSON,
             sentiment TEXT CHECK (sentiment IN ('positive','neutral','negative')),
             confidence REAL,
-            cost_cents INTEGER,
-            tokens INTEGER,
+            cost_cents INTEGER DEFAULT 0,
             model_version TEXT,
-            create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            create_time TEXT NOT NULL,
+            PRIMARY KEY(article_id, model_version),
             FOREIGN KEY(article_id) REFERENCES articles(id)
         );
+        CREATE TABLE IF NOT EXISTS ingest_log(
+            id TEXT PRIMARY KEY,
+            url TEXT NOT NULL,
+            status TEXT NOT NULL,
+            note TEXT,
+            create_time TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_articles_text_hash ON articles(text_hash);
+        CREATE INDEX IF NOT EXISTS idx_articles_create_time ON articles(create_time);
+        CREATE INDEX IF NOT EXISTS idx_analyses_article_id ON analyses(article_id);
         """)
     conn.close()
     
 def store_analysis(aid, url, domain, title, lang, summary, sentiment, conf, tokens, latency_ms, cost_cents, model_version):
-    conn = sqlite3.connect(DB_PATH); cur = conn.cursor()
+    conn = safe_connect(DB_PATH)
+    cur = conn.cursor()
     
     snippet = (summary or '')[:600]
     norm = ' '.join(snippet.lower().split())
