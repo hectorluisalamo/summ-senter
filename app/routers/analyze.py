@@ -56,11 +56,13 @@ def analyze(req: AnalyzeRequest, request: Request):
     start = time.time()
     if sum([bool(req.url), bool(req.html), bool(req.text)]) != 1:
         raise HTTPException(status_code=400, detail='provide exactly one of url|html|text')
+    
     lang = _as_str(req.lang or 'en').lower()
+    url = _as_str(req.url)
+    domain, title, meta = 'local', None, {}
+    
     if req.url:
-        url = _as_str(req.url)
-        text = fetch_url(url)
-        title = None
+        text = fetch_url(url, timeout_s=20)
         domain = urlparse(str(req.url)).netloc
     elif req.html:
         text = clean_html_to_text(req.html)
@@ -71,9 +73,6 @@ def analyze(req: AnalyzeRequest, request: Request):
         domain, title = 'local', None
     if not isinstance(text, str) or not text.strip():
         raise HTTPException(status_code=400, detail='empty_text')
-    
-    log.info('analyze_request_types', lang_type=type(lang).__name__, url_type=type(url).__name__, text_type=type(text).__name__)
-
     
     # Cache check
     mv_sum = 'openai:gpt-5-mini@sum_v1'
