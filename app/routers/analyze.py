@@ -103,6 +103,7 @@ def analyze(req: AnalyzeRequest, request: Request):
     try:
         label, conf, mv_sent = predict_label(summary)
     except Exception as e:
+        log.info('Sentiment_error_debug', type=str(type(summary)), preview=str(summary)[:120])
         raise HTTPException(status_code=502, detail=f'sentiment_error: {e}')
     
     model_version = f"{sum_out['model_version']}|sent:{mv_sent}"

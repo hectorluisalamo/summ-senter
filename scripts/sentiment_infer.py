@@ -17,6 +17,16 @@ _tokenizer = None
 _model = None
 ID2LABEL = {0: "negative", 1: "neutral", 2: "positive"}
 
+def _coerce_to_text(x) -> str:
+    if isinstance(x, str):
+        return x
+    if isinstance(x, (list, tuple)):
+        try:
+            return ' '.join([str(t) for t in x])
+        except Exception:
+            return ' '.join(map(str, x))
+    return str(x)
+
 def _normalize(text: str) -> str:
     return ' '.join((text or '').split())
 
@@ -31,6 +41,7 @@ def _load_once():
 @torch.inference_mode()
 def predict_label(text: str) -> Tuple[str, float, str]:
     tokenizer, model = _load_once()
+    text = _coerce_to_text(text)
     text = _normalize(text)
     batch = tokenizer(text, return_tensors='pt', truncation=True, max_length=MAX_LEN)
     batch = {k: v.to(_device) for k, v in batch.items()}
