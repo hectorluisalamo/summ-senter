@@ -45,25 +45,35 @@ def cache_setex(key: str, ttl: int, val: str):
     except RedisError:
         return
 
+def _as_str(x, default=''):
+    if isinstance(x, (list, tuple)):
+        return str(x[0]) if x else default
+    return str(x) if x is not None else default
+
 @router.post('/', response_model=AnalyzeResponse)
 def analyze(req: AnalyzeRequest, request: Request):
     ensure_db()
     start = time.time()
     if sum([bool(req.url), bool(req.html), bool(req.text)]) != 1:
         raise HTTPException(status_code=400, detail='provide exactly one of url|html|text')
-    lang = req.lang or 'en'
+    lang = _as_str(req.lang or 'en').lower()
     if req.url:
-        text = fetch_url(str(req.url))
+        url = _as_str(req.url)
+        text = fetch_url(url)
         title = None
         domain = urlparse(str(req.url)).netloc
     elif req.html:
         text = clean_html_to_text(req.html)
         domain, title = 'local', None
     else:
-        text = ' '.join((req.text).split())[:MAX_INPUT_CHARS]
+        text = _as_str(req.text)
+        text = ' '.join((text).split())[:MAX_INPUT_CHARS]
         domain, title = 'local', None
     if not isinstance(text, str) or not text.strip():
         raise HTTPException(status_code=400, detail='empty_text')
+    
+    log.info('analyze_request_types', lang_type=type(lang).__name__, url_type=type(url).__name__, text_type=type(text).__name__)
+
     
     # Cache check
     mv_sum = 'openai:gpt-5-mini@sum_v1'
@@ -101,7 +111,8 @@ def analyze(req: AnalyzeRequest, request: Request):
     
     # Sentiment on summary
     try:
-        label, conf, mv_sent = predict_label(summary)
+        text_for_sent = summary or text
+        label, conf, mv_sent = predict_label(text_for_sent)
     except Exception as e:
         log.info('Sentiment_error_debug', type=str(type(summary)), preview=str(summary)[:120])
         raise HTTPException(status_code=502, detail=f'sentiment_error: {e}')

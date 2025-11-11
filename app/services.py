@@ -13,6 +13,9 @@ MAX_INPUT_CHARS = 8000
 FETCH_TIMEOUT_S = 10
 DB_PATH = os.getenv('DB_PATH', 'data/app.db')
 
+def _lower(x: object) -> str:
+    return str(x or '').lower()
+
 def load_allowlist():
     with open(ALLOWLIST_PATH, 'r', encoding='utf-8') as f:
         domains = []
@@ -20,7 +23,7 @@ def load_allowlist():
             s = line.strip()
             if not s or s.startswith('#'):
                 continue
-            s = s.lower().lstrip('.')
+            s = _lower(s).lstrip('.')
             domains.append(s)
         return set(domains)
     
@@ -32,7 +35,7 @@ def reload_allowlist():
 
 def domain_allowed(url: str) -> bool:
     host = urlparse(url).hostname or ''
-    host = host.lower().rstrip('.')
+    host = _lower(host).rstrip('.')
     allowed = any(host == d or host.endswith('.' + d) for d in ALLOW)
     if not allowed:
         log.info('domain_denied', host=host, allowlist=list(ALLOW)[:12], allowlist_size=len(ALLOW))
@@ -57,7 +60,7 @@ def clean_html_to_text(html: str):
         tag.decompose()
     for el in soup(True):
         for attr in list(el.attrs.keys()):
-            if attr.lower().startswith('on'):
+            if _lower(attr).startswith('on'):
                 del el.attrs[attr]
     full = ' '.join(soup.get_text(separator=' ').split())
     text = full[:MAX_INPUT_CHARS]
@@ -138,7 +141,7 @@ def store_analysis(aid, url, domain, title, lang, summary, sentiment, conf, toke
     cur = conn.cursor()
     
     snippet = (summary or '')[:600]
-    norm = ' '.join(snippet.lower().split())
+    norm = ' '.join(_lower(snippet).split())
     text_hash = hashlib.sha256(norm.encode('utf-8')).hexdigest()
     
     cur.execute("""INSERT OR REPLACE INTO articles

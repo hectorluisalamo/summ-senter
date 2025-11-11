@@ -32,10 +32,14 @@ if st.sidebar.button('Ping API /health'):
 mode = st.radio('Source', ['URL', 'Text'], horizontal=True, key='mode')
 lang = st.selectbox('Language (input)', ['en', 'es'], index=0, key='lang')
 
-def sentiment_badge(sentiment: str):
-    s = (sentiment or '').lower()
+def sentiment_badge(sentiment):
+    if sentiment and isinstance(sentiment, (list, tuple)):
+        s = sentiment[0]
+    else:
+        s = sentiment
+    s = str(s or '').lower()
     color_map = {'positive': 'green', 'neutral': 'blue', 'negative': 'red'}
-    label = s.capitalize() if s else 'Neutral'
+    label = s.capitalize() if s else '-'
     color = color_map.get(s, 'blue')
     st.markdown(f'<span style="background:{color}; color:white; padding:4px 8px; border-radius:6px">{label}</span>', unsafe_allow_html=True)
     
