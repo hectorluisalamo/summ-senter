@@ -140,16 +140,19 @@ def analyze(req: AnalyzeRequest, request: Request):
     model_version = f"{sum_out['model_version']}|sent:{mv_sent}"
     
     # Token usage + cost
-    usage = sum_out.get('usage') or {}
     try:
-        in_tokens = int(usage.get('prompt_tokens', 0))
-        out_tokens = int(usage.get('completion_tokens', 0))
+        in_tokens = int(sum_out['usage']['prompt_tokens'], 0)
+        out_tokens = int(sum_out['usage']['completion_tokens'], 0)
     except (ValueError, TypeError):
         in_tokens, out_tokens = 0, 0
     tokens_used = in_tokens + out_tokens
     cached_in_tokens = 0
     model_key = sum_out['model_version'].split('@')[0]
     cost_cents = estimate_cost_cents(model_key, in_tokens, out_tokens, cached_in_tokens)
+    
+    log.info('sum_types', summary_t=type(summary).__name__, in_t=in_tokens, out_t=out_tokens)
+    if not isinstance(summary, str):
+        raise HTTPException(500, detail={'code': 'summary_not_str' ,'message': str(type(summary))})
     
     # Metrics + logs
     total_latency = int((time.time() - start) * 1000)
@@ -180,7 +183,6 @@ def analyze(req: AnalyzeRequest, request: Request):
     resp = {
         'id': aid,
         'summary': summary,
-        'key_sentences': [],
         'sentiment': label,
         'confidence': conf,
         'tokens': tokens_used,

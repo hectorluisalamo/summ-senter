@@ -37,12 +37,12 @@ def summarize_with_fallback(raw_text: str, lang: str) -> Dict:
         text = translate_es_to_en(text)
 
     # API path
-    p = build_prompt(text)
+    prompt = build_prompt(text)
     t0 = time.time()
     try:
-        out = call_openai(p) # may raise (429, network, etc.)
+        text, pt, ct = call_openai(prompt)
         return {
-            'summary': out,
+            'summary': text,
             'latency_ms': int((time.time() - t0) * 1000),
             'model_version': 'openai:gpt-5-mini@sum_v1'
         }

@@ -68,7 +68,6 @@ def summarize(text: str, lang: str) -> dict:
         out = lead_n_summary(text)
         return {'summary': out, 'latency_ms': 0, 'model_version': 'rule:lead3@sum_stub'}
     else:
-        out = call_openai(prompt)
         mv = f"openai:{MODEL_NAME}@{VERSION}"
         text, pt, ct = call_openai(prompt)
         dt = int((time.time() - t0) * 1000)
