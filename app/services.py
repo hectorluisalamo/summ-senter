@@ -1,4 +1,4 @@
-import os, re, hashlib, sqlite3, requests
+import datetime, os, json, hashlib, re, sqlite3, requests
 from pathlib import Path
 from urllib.parse import urlparse
 import urllib.robotparser as roboparser
@@ -6,15 +6,45 @@ from bs4 import BeautifulSoup
 from fastapi import HTTPException
 from readability import Document
 from app.obs import log
+import requests
 
 ALLOWLIST_PATH = 'config/allowlist.txt'
 USER_AGENT = 'NewsSumSentiment/0.1 (+contact: halamo24@gmail.com)'
 MAX_INPUT_CHARS = 8000
-FETCH_TIMEOUT_S = 10
+FETCH_TIMEOUT_S = 20
 DB_PATH = os.getenv('DB_PATH', 'data/app.db')
+SNIPPET_CHARS = 240
+MAX_BYTES = 2_500_000
+
+def _normalize_whitespace(s: str) -> str:
+    return re.sub(r'\s+', ' ', (s or '').strip())
 
 def _lower(x: object) -> str:
     return str(x or '').lower()
+
+def _to_str_or_none(x, *, maxlen=None):
+    if x is None:
+        return None
+    if isinstance(x, (list, tuple)):
+        x = ' '.join(map(str, x))
+    elif isinstance(x, dict):
+        x = json.dumps(x, ensure_ascii=False)
+    else:
+        x = str(x)
+    x = x.strip()
+    if not x:
+        return None
+    if maxlen and len(x) > maxlen:
+        x = x[:maxlen]
+    return x
+
+def build_snippet(text: str, n: int = SNIPPET_CHARS) -> str:
+    t = _normalize_whitespace(text)
+    return t[:n]
+    
+def build_text_hash(text: str) -> str:
+    norm = _normalize_whitespace(text)
+    return hashlib.sha256('utf-8').hexdigest()
 
 def load_allowlist():
     with open(ALLOWLIST_PATH, 'r', encoding='utf-8') as f:
@@ -53,7 +83,26 @@ def robots_allow(url: str) -> bool:
     except Exception:
         return True
 
-def clean_html_to_text(html: str):
+def clean_article_html(html: str) -> tuple[str, dict]:
+    soup = BeautifulSoup(html or '', 'lxml')
+    title = (soup.title.string or '').strip if soup.title else None
+    for attr, val in [('property', 'og:description'), ('name', 'description')]:
+        tag = soup.find('meta', {attr: val})
+        if tag and tag.get('content'):
+            desc = tag['content'].strip()
+            break
+    
+    pub = None
+    for attr, val in [('property', 'article:published_time'), ('itemprop', 'datePublished'), ('name', 'pubdate'), ('name', 'date')]:
+        tag = soup.find('meta', {attr: val})
+        if tag and tag.get('content'):
+            pub = tag['content'].strip()
+            break
+    if not pub:
+        t = soup.find('time', attrs={'datetime': True})
+        if t:
+            pub = t['datetime'].strip()
+            
     doc = Document(html)
     soup = BeautifulSoup(doc.summary(), 'lxml')
     for tag in soup(['script', 'style', 'iframe', 'noscript']):
@@ -64,17 +113,58 @@ def clean_html_to_text(html: str):
                 del el.attrs[attr]
     full = ' '.join(soup.get_text(separator=' ').split())
     text = full[:MAX_INPUT_CHARS]
-    return text
+    
+    meta = {'title': title, 'snippet': desc, 'pub_time': pub}
+    return text, meta
 
-def fetch_url(url: str) -> str:
+def maybe_extract_pub_time(html: str) -> str | None:
+    try:
+        soup = BeautifulSoup(html or '', 'lxml')
+        candidates = []
+        for attr, val in [
+            ('property', 'article: published_time'),
+            ('name', 'pubdate'),
+            ('name', 'date'),
+            ('itemprop', 'datePublished'),
+        ]:
+            tag = soup.find('meta', {attr: val})
+            if tag and tag.get('content'): candidates.append(tag['content'])
+        t = soup.find('time', attrs={'datetime': True})
+        if t: candidates.append(t['datetime'])
+        for c in candidates:
+            c = c.strip()
+            try:
+                dt = datetime.fromisoformat(c.replace('Z', '+00:00'))
+                return dt.isoformat()
+            except Exception:
+                if re.search(r'\d{4}-\d{2}-\d{2}', c):
+                    return c
+        return None
+    except Exception:
+        return None
+
+def fetch_url(url: str, timeout_s: int) -> str:
     if not domain_allowed(url):
         raise HTTPException(status_code=403, detail='domain_not_allowed')
     if not robots_allow(url):
         raise HTTPException(status_code=403, detail='blocked_by_robots')
-    resp = requests.get(url, headers={'User-Agent': USER_AGENT}, timeout=FETCH_TIMEOUT_S)
+    headers = {'User-Agent': USER_AGENT}
+    resp = requests.get(url, headers=headers, timeout=FETCH_TIMEOUT_S, allow_redirects=True, stream=True)
     if resp.status_code != 200:
         raise HTTPException(status_code=400, detail=f'http_{resp.status_code}')
-    return clean_html_to_text(resp.text)
+    ctype = (resp.headers.get('content-type') or '').lower()
+    if 'text/html' not in ctype and 'application/xhtml+xml' not in ctype:
+        raise HTTPException(status_code=415, detail='unsupported_media_type')
+    
+    content = b''
+    for chunk in resp.iter_content(64_000):
+        content += chunk
+        if len(content) > MAX_BYTES:
+            raise HTTPException(status_code=413, detail='page_too_large')
+        
+    resp.encoding = resp.encoding or resp.apparent_encoding or 'utf-8'
+    html = content.decode(resp.encoding, errors='replace')
+    return html
 
 def cache_key(url: str, model_version: str) -> str:
     blob = (url + '|' + model_version).encode('utf-8')
@@ -136,23 +226,32 @@ def ensure_db():
         """)
     conn.close()
     
-def store_analysis(aid, url, domain, title, lang, summary, sentiment, conf, tokens, latency_ms, cost_cents, model_version):
+def store_analysis(aid, url, domain, title, lang, pub_time, snippet, text_hash, summary, sentiment, confidence, cost_cents, model_version):
     conn = safe_connect()
     cur = conn.cursor()
     
-    snippet = (summary or '')[:600]
-    norm = ' '.join(_lower(snippet).split())
-    text_hash = hashlib.sha256(norm.encode('utf-8')).hexdigest()
+    url = _to_str_or_none(url, maxlen=1024)
+    domain = _to_str_or_none(domain, maxlen=255)
+    title = _to_str_or_none(title, maxlen=512)
+    lang = _to_str_or_none(lang, maxlen=10)
+    pub_time = _to_str_or_none(pub_time)
+    snippet = _to_str_or_none(snippet, maxlen=512)
+    text_hash = _to_str_or_none(text_hash, maxlen=128)
+    
+    summary = _to_str_or_none(summary)
+    sentiment = _to_str_or_none(sentiment, maxlen=16)
+    model_version = _to_str_or_none(model_version, maxlen=128)
     
     cur.execute("""INSERT OR REPLACE INTO articles
                 (id, url, domain, title, lang, pub_time, snippet, text_hash, create_time) 
-                VALUES(?,?,?,?,?,?,?,?, datetime('now'))
+                VALUES(?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
     """, (aid, url or '', domain or '', (title or None), lang, None, snippet, text_hash))
     
     cur.execute("""
         INSERT OR REPLACE INTO analyses
         (article_id, summary, sentiment, confidence, cost_cents, model_version, create_time)
-        VALUES (?,?,?,?,?,?, datetime('now'))
-    """, (aid, summary or '', sentiment, float(conf), int(cost_cents), model_version))
+        VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+    """, (aid, summary or '', sentiment, float(confidence), int(cost_cents), model_version))
     
-    conn.commit(); conn.close()
+    conn.commit()
+    conn.close()

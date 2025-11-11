@@ -4,7 +4,7 @@ from uuid import uuid4
 from fastapi import APIRouter, HTTPException, Request
 from urllib.parse import urlparse
 from app.schemas import AnalyzeRequest, AnalyzeResponse
-from app.services import fetch_url, clean_html_to_text, store_analysis, ensure_db
+from app.services import fetch_url, clean_article_html, store_analysis, ensure_db, build_text_hash, build_snippet, maybe_extract_pub_time
 from app.obs import estimate_cost_cents, should_sample, log
 from app.metrics import observe_ms, inc
 
@@ -24,6 +24,7 @@ MAX_INPUT_CHARS = 8000
 CACHE_TTL_S = 259200
 REDIS_URL = os.getenv('REDIS_URL', '')
 API_SCHEMA_VER = 'v1.1'
+FETCH_TIMEOUT_S = 20
 
 router = APIRouter(prefix='/analyze', tags=['analyze'])
     
@@ -58,21 +59,33 @@ def analyze(req: AnalyzeRequest, request: Request):
         raise HTTPException(status_code=400, detail='provide exactly one of url|html|text')
     
     lang = _as_str(req.lang or 'en').lower()
-    url = _as_str(req.url)
     domain, title, meta = 'local', None, {}
     
     if req.url:
-        text = fetch_url(url)
-        domain = urlparse(str(req.url)).netloc
+        url = _as_str(req.url)
+        html = fetch_url(url, timeout_s=FETCH_TIMEOUT_S)
+        domain = urlparse(url).netloc.lower() or 'local'
+        text, meta = clean_article_html(html)
+        title = meta.get('title')
+        pub_time = meta.get('pub_time') if isinstance(meta, dict) else None
+        if not pub_time:
+            pub_time = maybe_extract_pub_time(html)
     elif req.html:
-        text = clean_html_to_text(req.html)
-        domain, title = 'local', None
+        text, meta = clean_article_html(req.html)
+        title = meta.get('title')
+        pub_time = meta.get('pub_time') if isinstance(meta, dict) else None
+        if not pub_time:
+            pub_time = maybe_extract_pub_time(req.html)
+        domain = 'local'
     else:
         text = _as_str(req.text)
         text = ' '.join((text).split())[:MAX_INPUT_CHARS]
-        domain, title = 'local', None
+        domain, title, pub_time, meta = 'local', None, None, {'source': 'direct'}
     if not isinstance(text, str) or not text.strip():
         raise HTTPException(status_code=400, detail='empty_text')
+    
+    snippet = meta.get('snippet') or build_snippet(text)
+    text_hash = build_text_hash(text)
     
     # Cache check
     mv_sum = 'openai:gpt-5-mini@sum_v1'
@@ -172,17 +185,19 @@ def analyze(req: AnalyzeRequest, request: Request):
     
     # Store & cache
     should_cache = not sum_out['model_version'].startswith('rule:')
+    log.info('db_bind_types', title_t=type(title).__name__, snippet_t=type(snippet).__name__, text_t=type(text).__name__)
     store_analysis(
         aid, 
-        str(req.url) if req.url else '', 
+        url, 
         domain, 
         title, 
         lang,
+        pub_time,
+        snippet,
+        text_hash,
         summary, 
         label, 
-        conf, 
-        resp['tokens'], 
-        total_latency, 
+        conf,  
         cost_cents, 
         model_version)
     if rds and should_cache:
