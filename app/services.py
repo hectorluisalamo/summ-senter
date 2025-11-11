@@ -134,7 +134,7 @@ def ensure_db():
     conn.close()
     
 def store_analysis(aid, url, domain, title, lang, summary, sentiment, conf, tokens, latency_ms, cost_cents, model_version):
-    conn = safe_connect(DB_PATH)
+    conn = safe_connect()
     cur = conn.cursor()
     
     snippet = (summary or '')[:600]
