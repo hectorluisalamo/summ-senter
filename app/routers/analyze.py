@@ -62,7 +62,7 @@ def analyze(req: AnalyzeRequest, request: Request):
     domain, title, meta = 'local', None, {}
     
     if req.url:
-        text = fetch_url(url, timeout_s=20)
+        text = fetch_url(url)
         domain = urlparse(str(req.url)).netloc
     elif req.html:
         text = clean_html_to_text(req.html)
