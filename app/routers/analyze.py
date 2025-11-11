@@ -85,17 +85,25 @@ def analyze(req: AnalyzeRequest, request: Request):
         raise HTTPException(status_code=400, detail='empty_text')
     
     snippet = meta.get('snippet') or build_snippet(text)
+    text = _as_str(text)
     text_hash = build_text_hash(text)
     
     # Cache check
     mv_sum = 'openai:gpt-5-mini@sum_v1'
     mv_sent = 'distilbert-mc@sent_v4'
-    ck_blob = (
-        API_SCHEMA_VER + '|' +
-        (str(req.url) if req.url else hashlib.sha256(text.encode()).hexdigest()) + '|' + 
-        mv_sum + '|' + mv_sent
-    )
-    ckey = 'an:' + hashlib.sha256(ck_blob.encode()).hexdigest()
+    mv_trans = 'opus-mt-es-en@v1' if lang == 'es' else 'None'
+    
+    content_id = text_hash 
+    
+    ck_blob = '|'.join([
+        API_SCHEMA_VER,
+        content_id,
+        lang,
+        mv_sum,
+        mv_sent,
+        mv_trans,
+    ])
+    ckey = 'an:' + hashlib.sha256(ck_blob.encode('utf-8')).hexdigest()
     
     if rds:
         hit = cache_get(ckey)

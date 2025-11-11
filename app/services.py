@@ -44,7 +44,7 @@ def build_snippet(text: str, n: int = SNIPPET_CHARS) -> str:
     
 def build_text_hash(text: str) -> str:
     norm = _normalize_whitespace(text)
-    return hashlib.sha256('utf-8').hexdigest()
+    return hashlib.sha256(norm.encode('utf-8')).hexdigest()
 
 def load_allowlist():
     with open(ALLOWLIST_PATH, 'r', encoding='utf-8') as f:
