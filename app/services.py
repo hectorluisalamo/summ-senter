@@ -84,7 +84,7 @@ def robots_allow(url: str) -> bool:
 
 def clean_article_html(html: str) -> tuple[str, dict]:
     soup = BeautifulSoup(html or '', 'lxml')
-    title = (soup.title.string or '').strip if soup.title else None
+    title = (soup.title.string or '').strip() if soup.title else None
     for attr, val in [('property', 'og:description'), ('name', 'description')]:
         tag = soup.find('meta', {attr: val})
         if tag and tag.get('content'):
@@ -102,7 +102,7 @@ def clean_article_html(html: str) -> tuple[str, dict]:
         if t:
             pub = t['datetime'].strip()
             
-    doc = Document(html)
+    doc = Document(html or '')
     soup = BeautifulSoup(doc.summary(), 'lxml')
     for tag in soup(['script', 'style', 'iframe', 'noscript']):
         tag.decompose()
