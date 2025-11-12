@@ -5,6 +5,6 @@ def test_html_injection_sanitized(client, mock_summarize):
     body = r.json()
     assert 'onerror' not in body and 'alert(' not in body
     
-    from app.services import clean_html_to_text
-    txt = clean_html_to_text(malicious)
-    assert 'steal()' not in txt and 'onerror' not in txt and 'Hi' in txt and 'Body' in txt
+    from app.services import clean_article_html
+    text, meta = clean_article_html(malicious)
+    assert 'steal()' not in text and 'onerror' not in text and 'Hi' in text and 'Body' in text
