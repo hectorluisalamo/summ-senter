@@ -61,12 +61,13 @@ def analyze(req: AnalyzeRequest, request: Request):
         raise HTTPException(status_code=400, detail='provide exactly one of url|html|text')
     
     lang = _as_str(req.lang or 'en').lower()
+    source_url = ''
     domain, title, meta = 'local', None, {}
     
     if req.url:
-        url = normalize_url(_as_str(req.url))
-        html = fetch_url(url, timeout_s=FETCH_TIMEOUT_S)
-        domain = urlparse(url).netloc.lower() or 'local'
+        source_url = normalize_url(_as_str(req.url))
+        html = fetch_url(source_url, timeout_s=FETCH_TIMEOUT_S)
+        domain = urlparse(source_url).netloc.lower() or 'local'
         text, meta = clean_article_html(html)
         title = meta.get('title')
         pub_time = meta.get('pub_time') if isinstance(meta, dict) else None
@@ -97,7 +98,7 @@ def analyze(req: AnalyzeRequest, request: Request):
     
     content_id = text_hash 
     
-    ck_blob = (url if req.url else hashlib.sha256(text.encode()).hexdigest()) + '|' + mv_sum + '|' + mv_sent
+    ck_blob = (source_url if source_url else hashlib.sha256(text.encode()).hexdigest()) + '|' + mv_sum + '|' + mv_sent
     ckey = 'an:' + hashlib.sha256(ck_blob.encode()).hexdigest()
 
     if PG_CACHE_ENABLED:
@@ -184,7 +185,7 @@ def analyze(req: AnalyzeRequest, request: Request):
     log.info('db_bind_types', title_t=type(title).__name__, snippet_t=type(snippet).__name__, text_t=type(text).__name__)
     store_analysis(
         aid, 
-        url, 
+        source_url, 
         domain, 
         title, 
         lang,

@@ -85,6 +85,8 @@ def robots_allow(url: str) -> bool:
 def clean_article_html(html: str) -> tuple[str, dict]:
     soup = BeautifulSoup(html or '', 'lxml')
     title = (soup.title.string or '').strip() if soup.title else None
+    
+    desc = None
     for attr, val in [('property', 'og:description'), ('name', 'description')]:
         tag = soup.find('meta', {attr: val})
         if tag and tag.get('content'):
