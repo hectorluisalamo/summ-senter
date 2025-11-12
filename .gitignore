@@ -18,3 +18,4 @@ eval/model_metrics.json
 scripts/test.sh
 data/service.log
 dump.rdb
+requirements.txt
