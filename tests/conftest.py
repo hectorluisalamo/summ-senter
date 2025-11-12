@@ -1,15 +1,10 @@
 import os, pytest
 from fastapi.testclient import TestClient
 
-os.environ.setdefault('REDIS_URL', '')
 os.environ.setdefault('OPENAI_API_KEY', 'testkey')
 
 from fastapi.testclient import TestClient
 from app.main import app
-
-@pytest.fixture(autouse=True)
-def disable_cache_env(monkeypatch):
-    monkeypatch.setenv('REDIS_URL', '')
 
 @pytest.fixture()
 def client():

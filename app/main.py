@@ -1,5 +1,4 @@
 import os, traceback, logging, time
-from app.cache import get_client
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,7 +17,6 @@ LOG_PATH = 'data/service.log'
 
 ALLOWLIST_PATH = 'config/allowlist.txt'
 CACHE_TTL_SECONDS = 259200
-REDIS_URL = os.getenv('REDIS_URL', '')
 MAX_INPUT_CHARS = 8000
 FETCH_TIMEOUT_S = 10
 SUM_TIMEOUT_S = 20
@@ -27,8 +25,6 @@ app = FastAPI(title='News Summarizer + Sentiment')
 
 app.add_middleware(CORSMiddleware, allow_origins=['*'], allow_methods=['*'], allow_headers=['*'])
     
-rds = get_client(REDIS_URL)
-
 @app.on_event("startup")
 def warm_models():
     try:

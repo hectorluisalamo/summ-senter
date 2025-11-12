@@ -13,6 +13,6 @@ Fast, faithful news summaries with sentiment analysis, English/Spanish support, 
 - **Sentiment**: `positive | neutral | negative` with confidence.
 - **Bilingual**: ES→EN translation before summarization; EN handled natively.
 - **Explainability**: links back to sources; (highlights coming in Step 9).
-- **Caching**: Redis (optional) to hit cost/latency targets.
+- **Caching**: Postgres cache for solo app with low QPS
 - **API-first**: FastAPI service; UI planned (Streamlit).
 - **Eval suite**: 50-item gold set, baselines, offline gate, CI.

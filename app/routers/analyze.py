@@ -1,5 +1,4 @@
-import os, re, time, hashlib, json
-from app.cache import get_client, RedisError
+import os, re, time, hashlib
 from uuid import uuid4
 from fastapi import APIRouter, HTTPException, Request
 from urllib.parse import urlparse, urlunparse, parse_qsl, urlencode
@@ -24,7 +23,6 @@ except Exception:
 
 MAX_INPUT_CHARS = 8000
 CACHE_TTL_S = 259200
-REDIS_URL = os.getenv('REDIS_URL', '')
 API_SCHEMA_VER = 'v1.1'
 FETCH_TIMEOUT_S = 20
 
@@ -42,22 +40,6 @@ def normalize_url(url: str) -> str:
     path = u.path.rstrip('/') or '/'
     norm_u = urlunparse((u.scheme or 'https', host, path, '', urlencode(q, doseq=True), ''))
     return norm_u
-
-def cache_get(key: str):
-    if not rds:
-        return None
-    try:
-        return rds.get(key)
-    except RedisError:
-        return None
-    
-def cache_setex(key: str, ttl: int, val: str):
-    if not rds:
-        return
-    try:
-        rds.setex(key, ttl, val)
-    except RedisError:
-        return
 
 def _as_str(x, default=''):
     if isinstance(x, (list, tuple)):
