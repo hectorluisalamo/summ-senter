@@ -20,7 +20,7 @@ def cache_get(cache_key: str):
         conn = _conn_autocommit(conn)
         with conn.cursor() as cur:
             cur.execute(
-                """"
+                """
                 SELECT payload FROM http_cache 
                 WHERE cache_key = %s AND expires_at > NOW()
                 """,
@@ -29,7 +29,7 @@ def cache_get(cache_key: str):
             row = cur.fetchone()
             return row[0] if row else None
 
-def cache_set(cache_key: str, payload: dict):
+def cache_set(cache_key: str, payload: dict, ttl_seconds: int):
     data = json.dumps(payload, ensure_ascii=False)
     if len(data.encode('utf-8')) > MAX_PAYLOAD_BYTES:
         return

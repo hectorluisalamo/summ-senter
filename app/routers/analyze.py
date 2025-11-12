@@ -10,6 +10,7 @@ from app.pg_cache import cache_get, cache_set, cache_prune
 
 
 PROVIDER = os.getenv('SUMMARY_PROVIDER,' 'openai')
+PG_URL = os.getenv('DATABASE_URL')
 
 if PROVIDER == 'stub':
     from tests.conftest import mock_summarize, mock_sentiment
@@ -97,11 +98,11 @@ def analyze(req: AnalyzeRequest, request: Request):
     ck_blob = (url if req.url else hashlib.sha256(text.encode()).hexdigest()) + '|' + mv_sum + '|' + mv_sent
     ckey = 'an:' + hashlib.sha256(ck_blob.encode()).hexdigest()
 
-    
-    cached = cache_get(ckey)
-    if cached:
-        cached['cache_hit'] = True
-        return cached
+    if PG_URL:
+        cached = cache_get(ckey)
+        if cached:
+            cached['cache_hit'] = True
+            return cached
         
     # Summarize
     sum_out = summarize(text, lang)
@@ -178,7 +179,6 @@ def analyze(req: AnalyzeRequest, request: Request):
     }
     
     # Store & cache
-    should_cache = not sum_out['model_version'].startswith('rule:')
     log.info('db_bind_types', title_t=type(title).__name__, snippet_t=type(snippet).__name__, text_t=type(text).__name__)
     store_analysis(
         aid, 
@@ -195,10 +195,8 @@ def analyze(req: AnalyzeRequest, request: Request):
         cost_cents, 
         model_version)
     
-    if should_cache:
-        resp_to_cache = dict(resp)
-        resp_to_cache['cache_hit'] = False
-        cache_set(ckey, resp_to_cache)
+    if PG_URL:
+        cache_set(ckey, resp, CACHE_TTL_S)
         
     total_latency = int((time.time() - start) * 1000)
     resp['latency_ms'] = total_latency
