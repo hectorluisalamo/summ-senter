@@ -7,7 +7,7 @@ from app.schemas import AnalyzeRequest, AnalyzeResponse
 from app.services import fetch_url, clean_article_html, store_analysis, ensure_db, build_text_hash, build_snippet, maybe_extract_pub_time
 from app.obs import estimate_cost_cents, should_sample, log
 from app.metrics import observe_ms, inc
-from app.pg_cache import cache_get, cache_set
+from app.pg_cache import cache_get, cache_set, cache_prune
 
 
 PROVIDER = os.getenv('SUMMARY_PROVIDER,' 'openai')
@@ -31,13 +31,9 @@ FETCH_TIMEOUT_S = 20
 router = APIRouter(prefix='/analyze', tags=['analyze'])
 
 try:
-    rds = get_client(REDIS_URL)
-    if rds:
-        rds.ping()
-        log.info('cache', enabled=bool(rds))
-except Exception as e:
-    log.info('cache', enabled=False, error=str(e))
-    rds = None
+    cache_prune()
+except Exception:
+    pass
 
 def normalize_url(url: str) -> str:
     u = urlparse(url)
