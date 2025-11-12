@@ -7,6 +7,8 @@ from app.schemas import AnalyzeRequest, AnalyzeResponse
 from app.services import fetch_url, clean_article_html, store_analysis, ensure_db, build_text_hash, build_snippet, maybe_extract_pub_time
 from app.obs import estimate_cost_cents, should_sample, log
 from app.metrics import observe_ms, inc
+from app.pg_cache import cache_get, cache_set
+
 
 PROVIDER = os.getenv('SUMMARY_PROVIDER,' 'openai')
 
@@ -115,22 +117,13 @@ def analyze(req: AnalyzeRequest, request: Request):
     content_id = text_hash 
     
     ck_blob = (url if req.url else hashlib.sha256(text.encode()).hexdigest()) + '|' + mv_sum + '|' + mv_sent
-    ckey = 'an:' + hashlib.sha256(ck_blob.encode('utf-8')).hexdigest()
+    ckey = 'an:' + hashlib.sha256(ck_blob.encode()).hexdigest()
+
     
-    if rds:
-        hit = cache_get(ckey)
-        if hit:
-            payload = json.loads(hit)
-            if 'costs_cents' not in payload and 'cost_cents' in payload:
-                payload['costs_cents'] = payload.pop('cost_cents')
-            payload['cache_hit'] = True
-            total_latency = int((time.time() - start) * 1000)
-            # Prometheus bump for cache hit
-            if PROM:
-                P_COUNT.inc()
-                H_LAT.observe(total_latency)
-                
-            return payload
+    cached = cache_get(ckey)
+    if cached:
+        cached['cache_hit'] = True
+        return cached
         
     # Summarize
     sum_out = summarize(text, lang)
@@ -223,8 +216,11 @@ def analyze(req: AnalyzeRequest, request: Request):
         conf,  
         cost_cents, 
         model_version)
-    if rds and should_cache:
-        cache_setex(ckey, CACHE_TTL_S, json.dumps(resp))
+    
+    if should_cache:
+        resp_to_cache = dict(resp)
+        resp_to_cache['cache_hit'] = False
+        cache_set(ckey, resp_to_cache)
         
     total_latency = int((time.time() - start) * 1000)
     resp['latency_ms'] = total_latency
