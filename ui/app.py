@@ -1,4 +1,4 @@
-import os, time, requests, streamlit as st
+import json, os, time, requests, streamlit as st
 
 API_BASE = os.getenv('API_BASE', 'http://localhost:8000')
 API_KEY = os.getenv('DEMO_API_KEY', '')
@@ -49,28 +49,15 @@ def call_api(payload: dict):
     if API_KEY:
         headers['Authorization'] = f'Bearer {API_KEY}'
     for attempt in range(2):
+        r = requests.post(f'{API_BASE}/analyze', json=payload, headers=headers, timeout=API_TIMEOUT)
+        dt = int ((time.time() - t0) * 1000)
         try:
-            r = requests.post(f'{API_BASE}/analyze', json=payload, headers=headers, timeout=API_TIMEOUT)
-            dt = int ((time.time() - t0) * 1000)
-            try:
-                data = r.json()
-            except Exception:
-                data = r.text
-            return r.status_code, data, dt
-        except requests.exceptions.ReadTimeout:
-            if attempt == 0:
-                time.sleep(1.5)
-                continue
-            raise
-    resp = requests.post(f'{API_BASE}/analyze', json=payload, headers=headers, timeout=60)
-    dt = int((time.time() - t0) * 1000)
-    ctype = resp.headers.get('Content-Type', '')
-    is_json = 'application/json' in ctype.lower()
-    if is_json:
-        body = resp.json()
-    else:
-        body = {'non_json_body': resp.text[:1024]}
-    return int(resp.status_code), body, dt
+            body = r.json()
+            is_json = True
+        except Exception:
+            body = {'non_json_body': r.text[:2000]}
+            is_json = False
+        return r.status_code, body, is_json, dt
 
 with st.form('analyze', clear_on_submit=False):
     if mode == 'URL':
@@ -90,15 +77,14 @@ if submitted:
     else:
         with st.spinner('Analyzing...'):
             try:
-                code, data, roundtrip_ms = call_api(payload)
-                is_success = 200 <= code < 300
-                if not is_success:
-                    if isinstance(data, dict) and 'non_json_body' not in data:
-                        st.error(f'API Error {code}: {data.get("code", "")} {data.get("message", "")}')
-                        st.code(str(data), language='json')
+                code, data, is_json, roundtrip_ms = call_api(payload)
+                if code != 200:
+                    st.error(f'API Error {code}')
+                    if is_json:
+                        st.code(json.dumps(data, indent=2)[:2000], language='json')
                     else:
-                        st.error(f'API Error {code}')
-                        st.code(data.get('non_json_body', '(empty body)'), language='text')
+                        st.code(data.get('non_json_body', '(empty)'), language='text')
+                    st.stop()
                 else:
                     st.subheader('Summary')
                     st.write(data['summary'])
