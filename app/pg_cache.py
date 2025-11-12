@@ -8,7 +8,6 @@ if not DATABASE_URL:
 POOL = ConnectionPool(conninfo=DATABASE_URL, min_size=1, max_size=5)
 
 TTL_SECONDS = 72 * 3600
-MAX_PAYLOAD_BYTES = 500,000
 
 def _conn_autocommit(conn: psycopg.Connection):
     if not conn.autocommit:
@@ -31,8 +30,6 @@ def cache_get(cache_key: str):
 
 def cache_set(cache_key: str, payload: dict, ttl_seconds: int):
     data = json.dumps(payload, ensure_ascii=False)
-    if len(data.encode('utf-8')) > MAX_PAYLOAD_BYTES:
-        return
     with POOL.connection() as conn:
         conn = _conn_autocommit(conn)
         with conn.cursor() as cur:
