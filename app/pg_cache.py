@@ -38,7 +38,7 @@ def cache_set(cache_key: str, payload: dict, ttl_seconds: int):
             cur.execute(
                 """
                 INSERT INTO http_cache (cache_key, payload, expires_at)
-                VALUES (%s, %s, NOW() + (%s * INTERVAL '1 second')
+                VALUES (%s, %s, NOW() + make_interval(secs => %s))
                 ON CONFLICT (cache_key)
                 DO UPDATE SET payload = EXCLUDED.payload,
                               expires_at = EXCLUDED.expires_at,
