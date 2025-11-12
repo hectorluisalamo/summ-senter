@@ -12,6 +12,8 @@ from app.pg_cache import cache_get, cache_set, cache_prune
 PROVIDER = os.getenv('SUMMARY_PROVIDER,' 'openai')
 PG_URL = os.getenv('DATABASE_URL')
 
+PG_CACHE_ENABLED = bool(os.getenv('DATABASE_URL'))
+
 if PROVIDER == 'stub':
     from tests.conftest import mock_summarize, mock_sentiment
 else:
@@ -98,7 +100,7 @@ def analyze(req: AnalyzeRequest, request: Request):
     ck_blob = (url if req.url else hashlib.sha256(text.encode()).hexdigest()) + '|' + mv_sum + '|' + mv_sent
     ckey = 'an:' + hashlib.sha256(ck_blob.encode()).hexdigest()
 
-    if PG_URL:
+    if PG_CACHE_ENABLED:
         cached = cache_get(ckey)
         if cached:
             cached['cache_hit'] = True
@@ -195,7 +197,7 @@ def analyze(req: AnalyzeRequest, request: Request):
         cost_cents, 
         model_version)
     
-    if PG_URL:
+    if PG_CACHE_ENABLED:
         cache_set(ckey, resp, CACHE_TTL_S)
         
     total_latency = int((time.time() - start) * 1000)

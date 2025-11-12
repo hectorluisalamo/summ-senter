@@ -1,23 +1,28 @@
 import os, json
-import psycopg
-from psycopg_pool import ConnectionPool
+try:
+    import psycopg
+    from psycopg_pool import ConnectionPool
+except Exception:
+    psycopg = None 
 
-DATABASE_URL = os.getenv("DATABASE_URL")
-if not DATABASE_URL:
+PG_URL = os.getenv("DATABASE_URL")
+if not PG_URL:
     raise RuntimeError('DATABASE_URL not set')
-POOL = ConnectionPool(conninfo=DATABASE_URL, min_size=1, max_size=5)
+POOL = ConnectionPool(conninfo=PG_URL, min_size=1, max_size=5)
 
 TTL_SECONDS = 72 * 3600
 
-def _conn_autocommit(conn: psycopg.Connection):
-    if not conn.autocommit:
-        conn.autocommit = True
-    return conn
+def _conn():
+    if not PG_URL or not psycopg:
+        return None
+    return psycopg.connect(PG_URL)
 
 def cache_get(cache_key: str):
-    with POOL.connection() as conn:
-        conn = _conn_autocommit(conn)
-        with conn.cursor() as cur:
+    c = _conn()
+    if not c:
+        return None
+    with c:
+        with c.cursor() as cur:
             cur.execute(
                 """
                 SELECT payload FROM http_cache 
@@ -30,9 +35,11 @@ def cache_get(cache_key: str):
 
 def cache_set(cache_key: str, payload: dict, ttl_seconds: int):
     data = json.dumps(payload, ensure_ascii=False)
-    with POOL.connection() as conn:
-        conn = _conn_autocommit(conn)
-        with conn.cursor() as cur:
+    c = _conn()
+    if not c:
+        return
+    with c:
+        with c.cursor() as cur:
             cur.execute(
                 """
                 INSERT INTO http_cache (cache_key, payload, expires_at)
@@ -47,9 +54,11 @@ def cache_set(cache_key: str, payload: dict, ttl_seconds: int):
             
 
 def cache_prune(limit: int = 1000):
-    with POOL.connection() as conn:
-        conn = _conn_autocommit(conn)
-        with conn.cursor() as cur:
+    c = _conn()
+    if not c:
+        return 0
+    with c:
+        with c.cursor() as cur:
             cur.execute(
                 """
                 DELETE FROM http_cache 

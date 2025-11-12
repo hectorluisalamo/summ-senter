@@ -2,6 +2,7 @@ import os, pytest
 from fastapi.testclient import TestClient
 
 os.environ.setdefault('OPENAI_API_KEY', 'testkey')
+os.environ.setdefault("DATABASE_URL", "")
 
 from fastapi.testclient import TestClient
 from app.main import app
