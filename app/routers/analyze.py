@@ -2,7 +2,7 @@ import os, re, time, hashlib, json
 from app.cache import get_client, RedisError
 from uuid import uuid4
 from fastapi import APIRouter, HTTPException, Request
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlunparse, parse_qsl, urlencode
 from app.schemas import AnalyzeRequest, AnalyzeResponse
 from app.services import fetch_url, clean_article_html, store_analysis, ensure_db, build_text_hash, build_snippet, maybe_extract_pub_time
 from app.obs import estimate_cost_cents, should_sample, log
@@ -27,8 +27,23 @@ API_SCHEMA_VER = 'v1.1'
 FETCH_TIMEOUT_S = 20
 
 router = APIRouter(prefix='/analyze', tags=['analyze'])
-    
-rds = get_client(REDIS_URL)
+
+try:
+    rds = get_client(REDIS_URL)
+    if rds:
+        rds.ping()
+        log.info('cache', enabled=bool(rds))
+except Exception as e:
+    log.info('cache', enabled=False, error=str(e))
+    rds = None
+
+def normalize_url(url: str) -> str:
+    u = urlparse(url)
+    host = u.netloc.lower()
+    q = [(k, v) for (k, v) in parse_qsl(u.query, keep_blank_values=True) if not k.lower().startswith('utm_')]
+    path = u.path.rstrip('/') or '/'
+    norm_u = urlunparse((u.scheme or 'https', host, path, '', urlencode(q, doseq=True), ''))
+    return norm_u
 
 def cache_get(key: str):
     if not rds:
@@ -66,7 +81,7 @@ def analyze(req: AnalyzeRequest, request: Request):
     domain, title, meta = 'local', None, {}
     
     if req.url:
-        url = _as_str(req.url)
+        url = normalize_url(_as_str(req.url))
         html = fetch_url(url, timeout_s=FETCH_TIMEOUT_S)
         domain = urlparse(url).netloc.lower() or 'local'
         text, meta = clean_article_html(html)
@@ -99,14 +114,7 @@ def analyze(req: AnalyzeRequest, request: Request):
     
     content_id = text_hash 
     
-    ck_blob = '|'.join([
-        API_SCHEMA_VER,
-        content_id,
-        lang,
-        mv_sum,
-        mv_sent,
-        mv_trans,
-    ])
+    ck_blob = (url if req.url else hashlib.sha256(text.encode()).hexdigest()) + '|' + mv_sum + '|' + mv_sent
     ckey = 'an:' + hashlib.sha256(ck_blob.encode('utf-8')).hexdigest()
     
     if rds:
@@ -145,8 +153,8 @@ def analyze(req: AnalyzeRequest, request: Request):
     
     # Token usage + cost
     try:
-        in_tokens = int(sum_out['usage']['prompt_tokens'], 0)
-        out_tokens = int(sum_out['usage']['completion_tokens'], 0)
+        in_tokens = sum_out['usage']['prompt_tokens']
+        out_tokens = sum_out['usage']['completion_tokens']
     except (ValueError, TypeError):
         in_tokens, out_tokens = 0, 0
     tokens_used = in_tokens + out_tokens
