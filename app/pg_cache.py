@@ -1,15 +1,10 @@
 import os, json
 try:
     import psycopg
-    from psycopg_pool import ConnectionPool
 except Exception:
     psycopg = None 
 
 PG_URL = os.getenv("DATABASE_URL")
-if not PG_URL:
-    raise RuntimeError('DATABASE_URL not set')
-POOL = ConnectionPool(conninfo=PG_URL, min_size=1, max_size=5)
-
 TTL_SECONDS = 72 * 3600
 
 def _conn():
