@@ -1,4 +1,4 @@
-import os, time, hashlib, json
+import os, re, time, hashlib, json
 from app.cache import get_client, RedisError
 from uuid import uuid4
 from fastapi import APIRouter, HTTPException, Request
@@ -50,6 +50,10 @@ def _as_str(x, default=''):
     if isinstance(x, (list, tuple)):
         return str(x[0]) if x else default
     return str(x) if x is not None else default
+
+def top_sentences(text: str, n: int = 3):
+    sents = re.split(r'(?<=[.!?])\s+', (text or '').strip())
+    return [s for s in sents[:n] if s]
 
 @router.post('/', response_model=AnalyzeResponse)
 def analyze(req: AnalyzeRequest, request: Request):
@@ -190,6 +194,7 @@ def analyze(req: AnalyzeRequest, request: Request):
         'costs_cents': cost_cents,
         'model_version': model_version,
         'cache_hit': cache_hit,
+        'key_sentences': top_sentences(summary, 3),
         'used_fallback': not sum_out['model_version'].startswith('openai:')
     }
     
