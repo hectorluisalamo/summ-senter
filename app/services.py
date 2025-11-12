@@ -14,7 +14,6 @@ MAX_INPUT_CHARS = 8000
 FETCH_TIMEOUT_S = 20
 DB_PATH = os.getenv('DB_PATH', 'data/app.db')
 SNIPPET_CHARS = 240
-MAX_BYTES = 2_500_000
 
 def _normalize_whitespace(s: str) -> str:
     return re.sub(r'\s+', ' ', (s or '').strip())
@@ -159,8 +158,6 @@ def fetch_url(url: str, timeout_s: int) -> str:
     content = b''
     for chunk in resp.iter_content(64_000):
         content += chunk
-        if len(content) > MAX_BYTES:
-            raise HTTPException(status_code=413, detail='page_too_large')
         
     resp.encoding = resp.encoding or resp.apparent_encoding or 'utf-8'
     html = content.decode(resp.encoding, errors='replace')
