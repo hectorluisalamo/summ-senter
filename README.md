@@ -4,15 +4,55 @@
 ![Static Badge](https://img.shields.io/badge/Built%20with-Python-green)
 [![CI](https://github.com/hectorluisalamo/summ-senter/actions/workflows/ci.yml/badge.svg)](https://github.com/hectorluisalamo/summ-senter/actions/workflows/ci.yml)
 
-Fast, faithful news summaries with sentiment analysis, English/Spanish support, a minimal API, and a growing evaluation suite. Built to be **cheap, legal, and reproducible**.
+Paste a URL or text (EN/ES). We translate (if ES), summarize (GPT-5 mini), classify tone (DistilBERT), and show cost+latency.
 
-> Status: step 9/13 – service live on Render, tests & CI in place, baseline + early model evals done.
+**Live demo:** <https://news-ui-imck.onrender.com> 
+**API base:** <https://news-api-poev.onrender.com>
 
-## Features
-- **Summaries**: concise, neutral, 80–140 words, with optional key-sentence highlights.
-- **Sentiment**: `positive | neutral | negative` with confidence.
-- **Bilingual**: ES→EN translation before summarization; EN handled natively.
-- **Explainability**: links back to sources; (highlights coming in Step 9).
-- **Caching**: Postgres cache for solo app with low QPS
-- **API-first**: FastAPI service; UI planned (Streamlit).
-- **Eval suite**: 50-item gold set, baselines, offline gate, CI.
+## Quickstart (local)
+```bash
+# API
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.api.txt requirements.ui.txt
+uvicorn app.main:app --reload
+# UI
+streamlit run ui/app.py
+```
+
+## Architecture
+```mermaid
+flowchart LR
+  A[Client/UI] -->|POST /analyze| B[API (FastAPI)]
+  B --> C[Fetch & Clean]
+  C --> D{lang}
+  D -->|es| E[Opus-MT es→en]
+  D -->|en| F[Pass-through]
+  E --> G[GPT-5 mini • Summarize]
+  F --> G
+  G --> H[DistilBERT • Sentiment]
+  H --> I[(SQLite/Postgres)]
+  B --> J[(Redis Cache)]
+  B --> K[/metrics + logs/]
+  ```
+
+## Metrics (current)
+| **Variant** | **ROUGE-L(F)** | **BERTScore F1** | **Macro-F1 (sent)** | **p50 ms** | **p95 ms** | **Cost/1k toks (¢)** |
+|-------------|----------------|------------------|---------------------|-----------|------------|----------------------|
+
+
+## Limits
+* Allowlist + robots.txt only.
+* Summaries 80–140 words, neutral tone.
+* Spanish is translated before summarization.
+* Costs/latency displayed; cached repeats are faster.
+
+## License
+MIT (code). Respect publishers’ ToS; we store URLs + snippets only.
+
+## Contributing
+
+Pull requests and discussions are welcome.
+
+Created and maintained by **Hector Luis Alamo**.  
+
+📫 [LinkedIn](https://www.linkedin.com/in/hector-luis-alamo-90432941/)
