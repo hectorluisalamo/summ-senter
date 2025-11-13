@@ -38,6 +38,8 @@ flowchart LR
 ## Metrics (current)
 | **Variant** | **ROUGE-L(F)** | **BERTScore F1** | **Macro-F1 (sent)** | **p50 ms** | **p95 ms** | **Cost/1k toks (¢)** |
 |-------------|----------------|------------------|---------------------|-----------|------------|----------------------|
+| Baseline (Lead-3, VADER) | 0.186 | 0.8478 | 0.2675 | — | — | in:0.05/out:0.15 | — |
+| Model v1 (gpt-5-mini@sum_v1, distilbert@sent_v2) | 0.2408 | 0.2995 | 0.2713 | — | — | in:0.05/out:0.15 | — |
 
 
 ## Limits
