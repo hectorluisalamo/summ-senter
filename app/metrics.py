@@ -24,17 +24,14 @@ counters = defaultdict(int)
 timings_ms = defaultdict(lambda: deque(maxlen=5000))
 
 def inc(name: str, amount: int = 1) -> None:
-    """Increment a counter by amount."""
     with _lock:
         counters[name] += amount
         
 def observe_ms(name: str, duration_ms: float) -> None:
-    """Record latency (milliseconds) for `name`."""
     with _lock:
         timings_ms[name].append(duration_ms)
 
 def snapshot_metrics():
-    """Returns a snapshot of current metrics."""
     with _lock:
         c = dict(counters)
         t = {k: list(v) for k, v in timings_ms.items()}

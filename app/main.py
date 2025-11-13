@@ -38,23 +38,16 @@ def warm_models():
 
 @app.middleware('http')
 async def add_request_context(request: Request, call_next):
+    start = time.time()
     rid = new_request_id()
     request.state.request_id = rid
-    start = time.time()
     try:
-        response = await call_next(request)
-        return response
+        return await call_next(request)
     finally:
         dt = int((time.time() - start) * 1000)
         observe_ms('http_request_ms', dt)
         if should_sample():
-            log.info('http_request', rid=rid, path=request.url.path, ms=dt, method=request.method)
-
-@app.middleware('http')
-async def security_headers(request: Request, call_next):
-    resp = await call_next(request)
-    resp.headers['X-Frame-Options'] = 'DENY'
-    return resp    
+            log.info('http_request', rid=rid, path=request.url.path, ms=dt, method=request.method)  
 
 @app.exception_handler(Exception)
 async def all_errors(request: Request, exc: Exception):

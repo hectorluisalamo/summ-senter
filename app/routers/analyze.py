@@ -93,27 +93,24 @@ def analyze(req: AnalyzeRequest, request: Request):
     
     # Cache check
     mv_sum = 'openai:gpt-5-mini@sum_v1'
-    mv_sent = 'distilbert-mc@sent_v4'
-    mv_trans = 'opus-mt-es-en@v1' if lang == 'es' else 'None'
-    
-    content_id = text_hash 
-    
+    mv_sent = 'distilbert-mc@sent_v4'    
     ck_blob = (source_url if source_url else hashlib.sha256(text.encode()).hexdigest()) + '|' + mv_sum + '|' + mv_sent
     ckey = 'an:' + hashlib.sha256(ck_blob.encode()).hexdigest()
 
     if PG_CACHE_ENABLED:
         cached = cache_get(ckey)
         if cached:
+            dt = int((time.time() - start) * 1000)
+            observe_ms('analyze_latency_ms', dt)
+            inc('analyze_requests_total', 1)
+            if should_sample():
+                log.info('analyze', cache_hit=True, latency_ms=dt, model_version=cached.get('model_version'))
             cached['cache_hit'] = True
             return cached
         
     # Summarize
     sum_out = summarize(text, lang)
     summary = sum_out['summary']
-    
-    if summary == '':
-        summary = 'EMPTY_FROM_MODEL'
-        
     sum_latency = sum_out['latency_ms']
     
     # Sentiment on summary
@@ -143,27 +140,9 @@ def analyze(req: AnalyzeRequest, request: Request):
     
     # Metrics + logs
     total_latency = int((time.time() - start) * 1000)
-    observe_ms('analyze_latency_ms', total_latency)
+    observe_ms('analyze_latency_ms', dt)
     inc('analyze_requests_total', 1)
     cache_hit = False
-    
-    rid = getattr(getattr(request, 'state', object()), 'request_id', None)
-        
-    if should_sample():
-        log.info(
-                'analyze',
-                 request_id=request.state.request_id,
-                 url=str(req.url) if req.url else None,
-                 domain=domain,
-                 lang=lang,
-                 model_version=model_version,
-                 cache_hit=cache_hit,
-                 latency_ms=total_latency,
-                 sum_latency_ms=sum_latency,
-                 cost_cents=cost_cents,
-                 in_tokens=in_tokens,
-                 out_tokens=out_tokens
-        )
     
     # Assemble resonse
     aid = str(uuid4())
@@ -182,6 +161,27 @@ def analyze(req: AnalyzeRequest, request: Request):
     }
     
     # Store & cache
+    observe_ms('analyze_latency_ms', total_latency)
+    inc('analyze_requests_total', 1)
+    if PG_CACHE_ENABLED:
+        cache_set(ckey, resp, CACHE_TTL_S)
+    
+    if should_sample():
+        log.info(
+                'analyze',
+                 request_id=request.state.request_id,
+                 url=str(req.url) if req.url else None,
+                 domain=domain,
+                 lang=lang,
+                 model_version=model_version,
+                 cache_hit=cache_hit,
+                 latency_ms=total_latency,
+                 sum_latency_ms=sum_latency,
+                 cost_cents=cost_cents,
+                 in_tokens=in_tokens,
+                 out_tokens=out_tokens
+        )
+    
     log.info('db_bind_types', title_t=type(title).__name__, snippet_t=type(snippet).__name__, text_t=type(text).__name__)
     store_analysis(
         aid, 
@@ -197,12 +197,6 @@ def analyze(req: AnalyzeRequest, request: Request):
         conf,  
         cost_cents, 
         model_version)
-    
-    if PG_CACHE_ENABLED:
-        cache_set(ckey, resp, CACHE_TTL_S)
-        
-    total_latency = int((time.time() - start) * 1000)
-    resp['latency_ms'] = total_latency
     
     # Prometheus bump for non-cache path
     if PROM:
