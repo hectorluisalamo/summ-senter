@@ -115,7 +115,7 @@ def analyze(req: AnalyzeRequest, request: Request):
     
     # Sentiment on summary
     try:
-        text_for_sent = summary or text
+        text_for_sent = snippet or text
         label, conf, mv_sent = predict_label(text_for_sent)
     except Exception as e:
         log.info('Sentiment_error_debug', type=str(type(summary)), preview=str(summary)[:120])
