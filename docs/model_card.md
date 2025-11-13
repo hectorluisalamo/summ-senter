@@ -14,7 +14,7 @@
 - Pseudo labels: ~N snippets with VADER; stratified per label; EN-only/translated.
 
 ## Metrics (gold set)
-- ROUGE-L(F): 0.186 ; BERTScore F1: 0.8478 ; Macro-F1: 0.2675 (test).
+- ROUGE-L(F): 0.186 ; BERTScore F1: 0.8478 ; Macro-F1: 0.2675 (sent).
 - Baseline deltas: +0.05 ROUGE-L ; +0.10 Macro-F1.
 
 ## Limitations
