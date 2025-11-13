@@ -100,11 +100,11 @@ def analyze(req: AnalyzeRequest, request: Request):
     if PG_CACHE_ENABLED:
         cached = cache_get(ckey)
         if cached:
-            dt = int((time.time() - start) * 1000)
-            observe_ms('analyze_latency_ms', dt)
+            total_latency = int((time.time() - start) * 1000)
+            observe_ms('analyze_latency_ms', total_latency)
             inc('analyze_requests_total', 1)
             if should_sample():
-                log.info('analyze', cache_hit=True, latency_ms=dt, model_version=cached.get('model_version'))
+                log.info('analyze', cache_hit=True, latency_ms=total_latency, model_version=cached.get('model_version'))
             cached['cache_hit'] = True
             return cached
         
@@ -140,7 +140,7 @@ def analyze(req: AnalyzeRequest, request: Request):
     
     # Metrics + logs
     total_latency = int((time.time() - start) * 1000)
-    observe_ms('analyze_latency_ms', dt)
+    observe_ms('analyze_latency_ms', total_latency)
     inc('analyze_requests_total', 1)
     cache_hit = False
     
