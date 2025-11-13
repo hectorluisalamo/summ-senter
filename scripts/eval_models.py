@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
-import os, json, sqlite3, statistics
+import argparse, os, json, sqlite3, statistics
 from scripts.sentiment_infer import predict_label
-from scripts.summarize_openai import summarize
 from scripts.eval_baselines import rouge_l_f
 from bert_score import score as bertscore
 from sklearn.metrics import f1_score
@@ -15,59 +14,73 @@ DB_PATH = 'data/app.db'
 SUM_VER = 'rule:lead3@sum_stub' if OFFLINE else 'openai:gpt-5-mini@sum_v1'
 SENT_VER = 'distilbert-mc@sent_v4'
 
-BERT_MODEL = os.getenv('BERTSCORE_MODEL', 'roberta-base')
+BERT_MODEL = os.getenv('BERTSCORE_MODEL', 'roberta-large')
 
-def load_gold():
+def load_gold(path, lang_filter=None, max_items=None):
     rows = []
     with open(GOLD, 'r', encoding='utf-8') as f:
         for line in f:
-            rows.append(json.loads(line))
+            r  = json.loads(line)
+            if lang_filter and r.get('lang') != lang_filter:
+                continue
+            rows.append(r)
+            if max_items and len(rows) >= max_items:
+                break
     return rows
 
+def load_candidates(path):
+    by_id = {}
+    with open(path, 'r', encoding='utf-8') as f:
+        for line in f:
+            r = json.loads(line)
+            by_id[r['id']] = r['candidate']
+    return by_id
+
 def main():
-    gold = load_gold()
-    with sqlite3.connect(DB_PATH) as conn:
-        idsnip = {r[0]: r[1] for r in conn.execute("SELECT id, snippet FROM articles").fetchall()}
-        
-        preds_summ, refs_summ = [], []
-        sent_true, sent_pred = [], []
-        
-        for r in gold:
-            text = idsnip.get(r['id'], '')
-            if not text:
-                continue
-            summ = summarize(text, r['lang'])
-            preds_summ.append(summ['summary'])
-            refs_summ.append(r['reference_summary'])
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--gold', default='eval/gold_candidates.jsonl')
+    ap.add_argument('--out', default='eval/model_metrics.json')
+    ap.add_argument('--lang', default='en')
+    ap.add_argument('--max_items', type=int, default=20)
+    ap.add_argument('--cands_path', default=None) # If set, skip summarizer
+    args =ap.parse_args()
+    
+    gold = load_gold(args.gold, lang_filter=args.lang, max_items=args.max_items)
+    
+    # --- Either load candidates or generate them (skip API if cands provided) ---
+    if args.cands_path:
+        cands_by_id = load_candidates(args.cands_path)
+        cands = [cands_by_id[g['id']] for g in gold if g['id'] in cands_by_id]
+        refs = [g['reference_summary'] for g in gold if g['id'] in cands_by_id]
+    else:
+        from scripts.summarize_openai import summarize
+        cands, refs = [], []
+        for g in gold:
+            text = g.get('text') or g.get('article_text') or ''
+            out = summarize(text, g['lang'])
+            cands.append(out['summary'])
+            refs.append(g['reference_summary'])
             
-            label, *_ = predict_label(text)
-            sent_true.append(r['reference_sentiment'])
-            sent_pred.append(label)
+    P, R, F1 = bertscore(
+        cands, refs,
+        lang='en',
+        model_type=BERT_MODEL,
+        batch_size=16,
+        rescale_with_baseline=True,
+        verbose=False
+    )
+    bert_f1_mean = float(F1.mean())
             
-        rouge_scores = [rouge_l_f(ref, hyp) for ref, hyp in zip(refs_summ, preds_summ)]
-        rouge_l_mean = float(statistics.mean(rouge_scores))
-        P, R, F = bertscore(preds_summ, refs_summ, lang='en',
-                            model_type=BERT_MODEL,
-                            batch_size=16,
-                            rescale_with_baseline=True,
-                            verbose=False)
-        bert_f1_mean = float(F.mean().item())
-        macro = f1_score(sent_true, sent_pred, average='macro')
-            
-        results = {
-            'summarization': {
-                'rougeL_f_mean': round(rouge_l_mean, 4),
-                'bertscore_f1_mean': round(bert_f1_mean, 4),
-                'version': SUM_VER
-            },
-            'sentiment': {'macro_f1': round(macro, 4), 'version': SENT_VER}
-        }
-            
-        os.makedirs('eval', exist_ok=True)
-        with open(OUT_PATH, 'w', encoding='utf-8') as f:
-            json.dump(results, f, indent=2)
-                
-        print(json.dumps(results, indent=2))
+    results = {
+        'summarization': {
+            'bertscore_f1_mean': bert_f1_mean,
+            'version': SUM_VER
+        },
+    }
+    os.makedirs(os.path.dirname(args.out), exist_ok=True)
+    with open(args.out, 'w') as f:
+        json.dump(results, f, indent=2)
+    print('Wrote', args.out, 'with BERTScore F1 =', round(bert_f1_mean, 4))
             
 if __name__ == '__main__':
     main()
