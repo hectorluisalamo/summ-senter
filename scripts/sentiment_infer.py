@@ -48,19 +48,20 @@ def predict_label(text: str) -> Tuple[str, float, str]:
     
     logits = model(**batch).logits.squeeze(0)
     probs = torch.softmax(logits, dim=-1).detach().cpu()
+    p_neg, p_neu, p_pos = probs.tolist()
     pid = int(probs.argmax().item())
     maxp = float(probs[pid].item())
     id2label = model.config.id2label if hasattr(model.config, 'id2label') else {0: 'negative', 1: 'neutral', 2: 'positive'}
     label = id2label.get(pid, 'neutral')
     
-    """ Fallback if unsure
-    if maxp < UNCERTAIN_MAXP:
-        comp = vader.polarity_scores(text)['compound']
-        if comp >= VADER_POS:
-            label, maxp = 'positive', max(maxp, float(comp))
-        elif comp <= VADER_NEG:
-            label, maxp = 'negative', max(maxp, float(abs(comp)))
-    """
+    TAU = 0.55
+    DELTA = 0.08
+    
+    if maxp < TAU:
+        return 'neutral', maxp, mv
+    
+    if abs(p_pos - p_neg) < DELTA and p_neu >= min (p_pos, p_neg):
+        return 'neutral', float(p_neu), mv
     
     return label, float(maxp), mv
 
