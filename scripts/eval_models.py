@@ -77,9 +77,7 @@ def main():
         P, R, F1 = bertscore(
         cands, refs,
         lang='en',
-        batch_size=16,
         rescale_with_baseline=True,
-        verbose=False
         )
     bert_f1_mean = float(F1.mean().item())
     macro = f1_score(y_true, y_pred, average='macro')
