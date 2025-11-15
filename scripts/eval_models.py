@@ -14,8 +14,6 @@ DB_PATH = 'data/app.db'
 SUM_VER = 'rule:lead3@sum_stub' if OFFLINE else 'openai:gpt-5-mini@sum_v1'
 SENT_VER = 'distilbert-mc@sent_v4'
 
-BERT_MODEL = os.getenv('BERTSCORE_MODEL', 'roberta-large')
-
 def load_gold(path, lang_filter=None, max_items=None):
     rows = []
     with open(GOLD, 'r', encoding='utf-8') as f:
@@ -54,33 +52,50 @@ def main():
         refs = [g['reference_summary'] for g in gold if g['id'] in cands_by_id]
     else:
         from scripts.summarize_openai import summarize
+        conn = sqlite3.connect('data/app.db')
+        id2snip = {r[0]: r[1] for r in conn.execute("SELECT id, snippet FROM articles").fetchall()}
+
         cands, refs = [], []
+        y_true, y_pred = [], []
         for g in gold:
-            text = g.get('text') or g.get('article_text') or ''
-            out = summarize(text, g['lang'])
-            cands.append(out['summary'])
+            text = id2snip.get(g['id'], '')
+            s_out = summarize(text, g['lang'])
+            cands.append(s_out['summary'])
             refs.append(g['reference_summary'])
+
+            label, *_ = predict_label(text)
+            y_true.append(g['reference_sentiment'])
+            y_pred.append(label)
             
-    P, R, F1 = bertscore(
+        from scripts.eval_baselines import rouge_l_f
+        from bert_score import score as bertscore
+        from sklearn.metrics import f1_score
+
+        rouge_scores = [rouge_l_f(ref, cand) for ref, cand in zip(refs, cands)]
+        rouge_l_mean = float(statistics.mean(rouge_scores))
+            
+        P, R, F1 = bertscore(
         cands, refs,
         lang='en',
-        model_type=BERT_MODEL,
         batch_size=16,
         rescale_with_baseline=True,
         verbose=False
-    )
-    bert_f1_mean = float(F1.mean())
+        )
+    bert_f1_mean = float(F1.mean().item())
+    macro = f1_score(y_true, y_pred, average='macro')
             
     results = {
         'summarization': {
-            'bertscore_f1_mean': bert_f1_mean,
+            'bertscore_f1_mean': round(bert_f1_mean, 4),
+            'rougeL_f_mean': round(rouge_l_mean, 4),
             'version': SUM_VER
         },
+        'sentiment': {'macro_f1': round(macro, 4), 'version': SENT_VER}
     }
-    os.makedirs(os.path.dirname(args.out), exist_ok=True)
-    with open(args.out, 'w') as f:
+    os.makedirs('eval', exist_ok=True)
+    with open('eval/model_metrics.json', 'w') as f:
         json.dump(results, f, indent=2)
-    print('Wrote', args.out, 'with BERTScore F1 =', round(bert_f1_mean, 4))
+    print(json.dumps(results, indent=2))
             
 if __name__ == '__main__':
     main()

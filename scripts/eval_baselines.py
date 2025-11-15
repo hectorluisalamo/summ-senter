@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import os, json, re, sqlite3, statistics
-from collections import defaultdict
-from typing import List, Tuple
+from typing import List
 
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from sklearn.metrics import f1_score, classification_report
@@ -76,7 +75,7 @@ def main():
     rouge_l_mean = float(statistics.mean(rouge_scores))
     
     # BERTScore F1
-    P, R, F = bertscore(preds_summ, refs_summ, lang='en', model_type='roberta-large')
+    P, R, F = bertscore(preds_summ, refs_summ, lang='en', rescale_with_baseline=True)
     bert_f1_mean = float(F.mean().item())
     
     # Sentiment baseline: VADER on snippet
