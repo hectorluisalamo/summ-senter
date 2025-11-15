@@ -1,7 +1,8 @@
 {
   "lead_n_sentences": 3,
   "lead_max_words": 180,
-  "bertscore_model": "roberta-large",
+  "bertscore_lang": "en",
+  "bertscore_rescale": "True",
   "vader_pos": 0.05,
   "vader_neg": -0.05
 }
