@@ -54,9 +54,9 @@ def predict_label(text: str) -> Tuple[str, float, str]:
     id2label = model.config.id2label if hasattr(model.config, 'id2label') else {0: 'negative', 1: 'neutral', 2: 'positive'}
     label = id2label.get(pid, 'neutral')
     
-    TAU = 0.55
-    DELTA = 0.08
-    NEU_FLOOR = 0.25
+    TAU = 0.40
+    DELTA = 0.07
+    NEU_FLOOR = 0.35
     
     if maxp < TAU:
         return 'neutral', maxp, mv
