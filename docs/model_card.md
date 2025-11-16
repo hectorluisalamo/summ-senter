@@ -15,7 +15,7 @@
 
 ## Metrics (gold set)
 - ROUGE-L(F): 0.186 ; BERTScore F1: 0.8478 ; Macro-F1: 0.2675 (sent).
-- Baseline deltas: +0.05 ROUGE-L ; +0.10 Macro-F1.
+- Baseline deltas: +0.10 ROUGE-L ; +0.10 Macro-F1.
 
 ## Limitations
 - VADER pseudo-labeling may bias neutral upward; model can overfit wire-style writing.

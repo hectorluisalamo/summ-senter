@@ -19,12 +19,12 @@ Sentiment target: **original text/snippet**, not the generated summary.
 ## Metrics
 **Baseline (Lead-3 + VADER)**  
 - ROUGE-L(F): 0.186  
-- BERTScore F1: 0.8478 *(30 EN items, 20 ES; roberta-base)* 
+- BERTScore F1: 0.8478 *(30 EN items, 20 ES; roberta-large)* 
 - Macro-F1 (sent): 0.2675
 
 **Model v1 (openai:gpt-5-mini@sum_v1 + distilbert-mc@sent_v4)**  
-- ROUGE-L(F): 0.2408  
-- BERTScore F1: **0.406** *(20 EN items; roberta-large, rescaled)*  
+- ROUGE-L(F): 0.326  
+- BERTScore F1: 0.894 *(30 EN items, 20 ES; roberta-large)*
 - Macro-F1 (sent): 0.2713 (test)
 
 Latency (warm path): p50 **~294 ms**, p95 **~380 ms** (Render).  
