@@ -6,7 +6,7 @@ from app.schemas import AnalyzeRequest, AnalyzeResponse
 from app.services import fetch_url, clean_article_html, store_analysis, ensure_db, build_text_hash, build_snippet, maybe_extract_pub_time
 from app.obs import estimate_cost_cents, should_sample, log
 from app.metrics import observe_ms, inc
-from app.pg_cache import cache_get, cache_set, cache_prune
+from app.pg_cache import cache_get, cache_set, cache_prune, cache_delete
 
 
 PROVIDER = os.getenv('SUMMARY_PROVIDER,' 'openai')
@@ -100,14 +100,19 @@ def analyze(req: AnalyzeRequest, request: Request):
     if PG_CACHE_ENABLED:
         cached = cache_get(ckey)
         if cached:
-            payload = json.loads(cached)
+            try:
+                payload = json.loads(cached)
+            except Exception:
+                cache_delete(ckey)
+        else:
             total_latency = int((time.time() - start) * 1000)
+            payload['cache_hit'] = True
+            payload['latency_ms'] = total_latency
+            payload.get('analysis_latency_ms', payload['latency_ms'])
             observe_ms('analyze_latency_ms', total_latency)
             inc('analyze_requests_total', 1)
             if should_sample():
-                log.info('analyze', cache_hit=True, latency_ms=total_latency, model_version=cached.get('model_version'))
-            payload['cache_hit'] = True
-            payload['latency_ms'] = total_latency
+                log.info('analyze', cache_hit=True, latency_ms=total_latency, model_version=payload.get('model_version'))
             return payload
         
     # Summarize
@@ -159,18 +164,18 @@ def analyze(req: AnalyzeRequest, request: Request):
         'analysis_latency_ms': analysis_latency_ms,
         'costs_cents': cost_cents,
         'model_version': model_version,
-        'cache_hit': cache_hit,
-        'key_sentences': top_sentences(summary, 3),
-        'used_fallback': not sum_out['model_version'].startswith('openai:')
+        'cache_hit': False,
+        'key_sentences': top_sentences(summary, 3)
     }
     
     # Store & cache
     observe_ms('analyze_latency_ms', total_latency)
     inc('analyze_requests_total', 1)
+    
     if PG_CACHE_ENABLED:
         cache_copy = dict(resp)
-        cache_copy['latency_ms'] = analysis_latency_ms
-        cache_set(ckey, resp, CACHE_TTL_S)
+        cache_copy['latency_ms'] = cache_copy.get('analysis_latency_ms', total_latency)
+        cache_set(ckey, json.dumps(cache_copy, ensure_ascii=False), CACHE_TTL_S)
     
     if should_sample():
         log.info(
