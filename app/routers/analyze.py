@@ -1,4 +1,4 @@
-import os, re, time, hashlib
+import json, os, re, time, hashlib
 from uuid import uuid4
 from fastapi import APIRouter, HTTPException, Request
 from urllib.parse import urlparse, urlunparse, parse_qsl, urlencode
@@ -100,13 +100,15 @@ def analyze(req: AnalyzeRequest, request: Request):
     if PG_CACHE_ENABLED:
         cached = cache_get(ckey)
         if cached:
+            payload = json.loads(cached)
             total_latency = int((time.time() - start) * 1000)
             observe_ms('analyze_latency_ms', total_latency)
             inc('analyze_requests_total', 1)
             if should_sample():
                 log.info('analyze', cache_hit=True, latency_ms=total_latency, model_version=cached.get('model_version'))
-            cached['cache_hit'] = True
-            return cached
+            payload['cache_hit'] = True
+            payload['latency_ms'] = total_latency
+            return payload
         
     # Summarize
     sum_out = summarize(text, lang)
@@ -143,6 +145,7 @@ def analyze(req: AnalyzeRequest, request: Request):
     observe_ms('analyze_latency_ms', total_latency)
     inc('analyze_requests_total', 1)
     cache_hit = False
+    analysis_latency_ms = sum_latency + 0
     
     # Assemble resonse
     aid = str(uuid4())
@@ -153,6 +156,7 @@ def analyze(req: AnalyzeRequest, request: Request):
         'confidence': conf,
         'tokens': tokens_used,
         'latency_ms': total_latency,
+        'analysis_latency_ms': analysis_latency_ms,
         'costs_cents': cost_cents,
         'model_version': model_version,
         'cache_hit': cache_hit,
@@ -164,6 +168,8 @@ def analyze(req: AnalyzeRequest, request: Request):
     observe_ms('analyze_latency_ms', total_latency)
     inc('analyze_requests_total', 1)
     if PG_CACHE_ENABLED:
+        cache_copy = dict(resp)
+        cache_copy['latency_ms'] = analysis_latency_ms
         cache_set(ckey, resp, CACHE_TTL_S)
     
     if should_sample():

@@ -8,7 +8,7 @@ PROVIDER = os.getenv('SUMMARY_PROVIDER,' 'openai')
 MODEL_NAME = os.getenv('SUMMARY_MODEL', 'gpt-5-mini')
 VERSION = 'sum_v1'
 
-MAX_TOKENS = int(os.getenv('SUMMARY_MAX_TOKENS', '300'))
+MAX_TOKENS = int(os.getenv('SUMMARY_MAX_TOKENS', '250'))
 MAX_PROMPT_CHARS = 4000
 
 def lead_n_summary(text: str, n: int = 3, max_words: int = 180) -> str:
@@ -47,7 +47,7 @@ def call_openai(prompt: str):
     try:
         from openai import OpenAI
     except Exception:
-        return '<stub summary', 0, 0
+        return '<stub summary>', 0, 0
     client = OpenAI()
     response = client.responses.create(
         model=MODEL_NAME,
