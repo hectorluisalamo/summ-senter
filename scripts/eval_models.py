@@ -10,6 +10,7 @@ OFFLINE = os.getenv('SUMMARY_PROVIDER', 'openai') != 'openai'
 GOLD = 'eval/gold_candidates.jsonl'
 OUT_PATH = 'eval/model_metrics.json'
 DB_PATH = 'data/app.db'
+CFG = json.load(open('eval/config.json'))
 
 SUM_VER = 'rule:lead3@sum_stub' if OFFLINE else 'openai:gpt-5-mini@sum_v1'
 SENT_VER = 'distilbert-mc@sent_v4'
@@ -76,13 +77,13 @@ def main():
             
         P, R, F1 = bertscore(
         cands, refs,
-        lang='en',
-        rescale_with_baseline=True,
+        model_type='roberta-large'
         )
     bert_f1_mean = float(F1.mean().item())
     macro = f1_score(y_true, y_pred, average='macro')
             
     results = {
+        "config": CFG,
         'summarization': {
             'bertscore_f1_mean': round(bert_f1_mean, 4),
             'rougeL_f_mean': round(rouge_l_mean, 4),
