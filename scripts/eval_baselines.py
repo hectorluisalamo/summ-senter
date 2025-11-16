@@ -75,7 +75,7 @@ def main():
     rouge_l_mean = float(statistics.mean(rouge_scores))
     
     # BERTScore F1
-    P, R, F = bertscore(preds_summ, refs_summ, lang='en', rescale_with_baseline=True)
+    P, R, F = bertscore(preds_summ, refs_summ, model_type='roberta-large')
     bert_f1_mean = float(F.mean().item())
     
     # Sentiment baseline: VADER on snippet
