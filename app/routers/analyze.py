@@ -104,7 +104,6 @@ def analyze(req: AnalyzeRequest, request: Request):
                 payload = json.loads(cached)
             except Exception:
                 cache_delete(ckey)
-        else:
             total_latency = int((time.time() - start) * 1000)
             payload['cache_hit'] = True
             payload['latency_ms'] = total_latency
@@ -164,7 +163,7 @@ def analyze(req: AnalyzeRequest, request: Request):
         'analysis_latency_ms': analysis_latency_ms,
         'costs_cents': cost_cents,
         'model_version': model_version,
-        'cache_hit': False,
+        'cache_hit': cache_hit,
         'key_sentences': top_sentences(summary, 3)
     }
     
