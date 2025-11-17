@@ -20,7 +20,6 @@ streamlit run ui/app.py
 ```
 
 ## Architecture
-```mermaid
 flowchart LR
   A[Client/UI] -->|POST /analyze| B[API (FastAPI)]
   B --> C[Fetch & Clean]
@@ -33,7 +32,6 @@ flowchart LR
   H --> I[(SQLite/Postgres)]
   B --> J[(Redis Cache)]
   B --> K[/metrics + logs/]
-  ```
 
 ## Metrics (current)
 | **Variant** | **ROUGE-L(F)** | **BERTScore F1** | **Macro-F1 (sent)** | **p50 ms** | **p95 ms** | **Cost/1k toks (¢)** |
