@@ -94,25 +94,26 @@ def analyze(req: AnalyzeRequest, request: Request):
     # Cache check
     mv_sum = 'openai:gpt-5-mini@sum_v1'
     mv_sent = 'distilbert-mc@sent_v4'    
-    ck_blob = (source_url if source_url else hashlib.sha256(text.encode()).hexdigest()) + '|' + mv_sum + '|' + mv_sent
+    src_for_key = (source_url if source_url else hashlib.sha256(text.encode()).hexdigest())
+    ck_blob = src_for_key + '|' + mv_sum + '|' + mv_sent + '|' + (lang or 'en')
     ckey = 'an:' + hashlib.sha256(ck_blob.encode()).hexdigest()
 
     if PG_CACHE_ENABLED:
         cached = cache_get(ckey)
         if cached:
             try:
-                payload = json.loads(cached)
+                payload = json.loads(cached) if isinstance(cached, str) else cached
             except Exception:
                 cache_delete(ckey)
-            total_latency = int((time.time() - start) * 1000)
-            payload['cache_hit'] = True
-            payload['latency_ms'] = total_latency
-            payload.get('analysis_latency_ms', payload['latency_ms'])
-            observe_ms('analyze_latency_ms', total_latency)
-            inc('analyze_requests_total', 1)
-            if should_sample():
-                log.info('analyze', cache_hit=True, latency_ms=total_latency, model_version=payload.get('model_version'))
-            return payload
+            else:
+                total_latency = int((time.time() - start) * 1000)
+                payload['cache_hit'] = True
+                payload['latency_ms'] = total_latency
+                observe_ms('analyze_latency_ms', total_latency)
+                inc('analyze_requests_total', 1)
+                if should_sample():
+                    log.info('analyze', cache_hit=True, latency_ms=total_latency, model_version=payload.get('model_version'))
+                return payload
         
     # Summarize
     sum_out = summarize(text, lang)
